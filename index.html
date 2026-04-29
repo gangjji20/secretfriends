@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>내 편 AI</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+:root{
+  --bg:#1a0a2e;--bg2:#2d0a4e;--bg3:rgba(255,255,255,0.06);--bg4:rgba(255,255,255,0.1);
+  --pink:#c84b99;--pink2:#9b2d7a;--purple:#7c4dbb;--red:#c0392b;
+  --text:#f0e6ff;--muted:#b388cc;--hint:#6b4a7a;
+  --border:rgba(255,255,255,0.1);--border2:rgba(255,255,255,0.18);
+  --safe-top:env(safe-area-inset-top);--safe-bot:env(safe-area-inset-bottom);
+  --app-h:100vh;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);}
+body{font-family:-apple-system,'Segoe UI',Tahoma,sans-serif;color:var(--text);overscroll-behavior:none;}
+
+/* ── APP SHELL ── */
+.app{display:flex;flex-direction:column;height:var(--app-h);max-width:480px;margin:0 auto;position:relative;}
+.panel{display:none;flex-direction:column;flex:1;overflow:hidden;}
+.panel.active{display:flex;}
+
+/* ── LOCK SCREEN ── */
+.lock-screen{position:fixed;inset:0;background:#0d0520;z-index:999;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.lock-screen.hidden{display:none;}
+.lock-box{display:flex;flex-direction:column;align-items:center;gap:16px;width:100%;max-width:320px;padding:0 24px;}
+.lock-icon{font-size:48px;margin-bottom:4px;}
+.lock-box h2{font-size:20px;font-weight:700;color:var(--text);}
+.lock-box p{font-size:13px;color:var(--muted);}
+.pin-dots{display:flex;gap:14px;margin:4px 0;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid var(--muted);background:transparent;transition:all .15s;}
+.pin-dot.filled{background:var(--pink);border-color:var(--pink);}
+.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;width:100%;max-width:260px;}
+.num-btn{aspect-ratio:1;border-radius:50%;background:rgba(255,255,255,0.06);border:1px solid var(--border2);color:var(--text);font-size:20px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;-webkit-user-select:none;user-select:none;transition:all .1s;font-family:inherit;}
+.num-btn:active{background:var(--bg4);transform:scale(0.93);}
+.num-btn.del{font-size:16px;color:var(--muted);}
+.num-btn.empty{background:transparent;border:none;cursor:default;}
+.lock-err{font-size:12px;color:#ff6b6b;height:16px;text-align:center;}
+
+/* ── TOP BAR ── */
+.top-bar{padding:10px 14px 6px;padding-top:calc(10px + var(--safe-top));background:linear-gradient(180deg,var(--bg2) 0%,transparent 100%);flex-shrink:0;}
+.top-row{display:flex;align-items:center;justify-content:space-between;min-height:36px;}
+.persona-display{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.persona-pill{display:flex;align-items:center;gap:4px;padding:4px 9px;border-radius:20px;font-size:11px;font-weight:700;}
+.persona-pill.fire{background:rgba(200,75,153,.22);border:1px solid rgba(200,75,153,.5);color:#ff9dc5;}
+.persona-pill.violet{background:rgba(124,77,187,.22);border:1px solid rgba(124,77,187,.5);color:#c4a0ff;}
+.persona-pill.devil{background:rgba(192,57,43,.22);border:1px solid rgba(192,57,43,.5);color:#ff8888;}
+.top-actions{display:flex;gap:5px;}
+.icon-btn{background:transparent;border:1px solid var(--border);border-radius:8px;color:var(--muted);cursor:pointer;padding:5px 8px;font-size:13px;transition:all .2s;-webkit-user-select:none;user-select:none;}
+.icon-btn:active{background:var(--bg3);}
+.mood-bar{display:flex;gap:5px;flex-wrap:wrap;margin-top:7px;}
+.mood-chip{font-size:11px;padding:4px 9px;border-radius:16px;cursor:pointer;border:1px solid transparent;background:none;color:var(--muted);font-family:inherit;-webkit-user-select:none;user-select:none;}
+.mood-chip.m1{border-color:rgba(100,150,255,.4);color:#8aabff;}
+.mood-chip.m2{border-color:rgba(200,75,153,.4);color:#ff9dc5;}
+.mood-chip.m3{border-color:rgba(255,165,0,.4);color:#ffbb55;}
+.mood-chip.m4{border-color:rgba(192,57,43,.4);color:#ff8888;}
+
+/* ── SETTINGS ── */
+.settings{background:rgba(45,10,78,.95);border-bottom:1px solid var(--border);padding:10px 14px;flex-shrink:0;display:none;}
+.settings.open{display:block;}
+.setting-row{display:flex;align-items:center;gap:8px;margin-bottom:9px;}
+.setting-row:last-child{margin-bottom:0;}
+.setting-label{font-size:11px;color:var(--muted);white-space:nowrap;min-width:52px;}
+.mode-btns{display:flex;gap:4px;}
+.mode-btn{padding:4px 11px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-family:inherit;-webkit-user-select:none;user-select:none;}
+.mode-btn.active{background:var(--pink);border-color:var(--pink);color:#fff;}
+.intensity-wrap{display:flex;align-items:center;gap:8px;flex:1;}
+/* iOS range input fix */
+input[type=range]{-webkit-appearance:none;appearance:none;flex:1;height:4px;border-radius:2px;background:linear-gradient(to right,var(--pink) 0%,var(--pink) calc(var(--val,60%)),rgba(255,255,255,.15) calc(var(--val,60%)));outline:none;}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:var(--pink);cursor:pointer;box-shadow:0 0 6px rgba(200,75,153,.5);}
+input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;background:var(--pink);cursor:pointer;border:none;}
+.intensity-label{font-size:11px;color:var(--pink);min-width:52px;text-align:right;}
+.text-input{flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:5px 10px;font-size:16px;font-family:inherit;outline:none;}
+.text-input:focus{border-color:rgba(200,75,153,.5);}
+.text-input::placeholder{color:var(--hint);}
+.security-row{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+.small-btn{padding:4px 10px;border-radius:12px;border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-family:inherit;-webkit-user-select:none;user-select:none;}
+.small-btn:active{background:var(--bg3);}
+.small-btn.on{background:rgba(200,75,153,.2);border-color:rgba(200,75,153,.5);color:#ff9dc5;}
+.setting-divider{border:none;border-top:1px solid var(--border);margin:6px 0;}
+
+/* ── CHAT AREA ── */
+.chat-area{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;display:flex;flex-direction:column;gap:7px;scroll-behavior:smooth;}
+.chat-area::-webkit-scrollbar{width:3px;}
+.chat-area::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px;}
+.welcome{text-align:center;padding:20px 10px;}
+.welcome .big{font-size:38px;margin-bottom:8px;}
+.welcome p{font-size:13px;color:var(--muted);line-height:1.7;}
+.quick-wrap{display:flex;flex-wrap:wrap;gap:5px;justify-content:center;margin-top:12px;}
+.quick-btn{font-size:11px;padding:5px 11px;background:rgba(200,75,153,.14);border:1px solid rgba(200,75,153,.3);border-radius:20px;color:#ff9dc5;cursor:pointer;font-family:inherit;-webkit-user-select:none;user-select:none;}
+.msg-row{display:flex;align-items:flex-end;gap:6px;animation:fadeUp .25s ease;}
+@keyframes fadeUp{from{opacity:0;transform:translateY(5px);}to{opacity:1;transform:translateY(0);}}
+.msg-row.user{flex-direction:row-reverse;}
+.mini-av{width:25px;height:25px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;}
+.mini-av.fire{background:linear-gradient(135deg,#c84b99,#9b2d7a);}
+.mini-av.violet{background:linear-gradient(135deg,#7c4dbb,#5a2d9b);}
+.mini-av.devil{background:linear-gradient(135deg,#c0392b,#6e0000);}
+.ai-msg-wrap{display:flex;flex-direction:column;}
+.persona-name{font-size:10px;color:var(--muted);margin-bottom:2px;padding-left:2px;}
+.bubble{max-width:77%;padding:9px 13px;border-radius:17px;font-size:14px;line-height:1.6;word-break:keep-all;white-space:pre-wrap;}
+.msg-row.user .bubble{background:linear-gradient(135deg,#c84b99,#9b2d7a);color:#fff;border-bottom-right-radius:4px;}
+.msg-row.ai .bubble{background:var(--bg3);border:1px solid var(--border);color:var(--text);border-bottom-left-radius:4px;}
+.typing-row{display:none;align-items:flex-end;gap:6px;}
+.typing-row.show{display:flex;}
+.typing-wrap{display:flex;flex-direction:column;}
+.typing-name{font-size:10px;color:var(--muted);margin-bottom:2px;}
+.typing-bubble{background:var(--bg3);border:1px solid var(--border);padding:9px 13px;border-radius:17px;border-bottom-left-radius:4px;display:flex;gap:4px;align-items:center;}
+.dot{width:5px;height:5px;background:var(--muted);border-radius:50%;animation:bounce 1.2s infinite;}
+.dot:nth-child(2){animation-delay:.2s;}.dot:nth-child(3){animation-delay:.4s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0);}30%{transform:translateY(-4px);}}
+
+/* ── REACTIONS ── */
+.reactions{flex-shrink:0;display:none;padding:6px 14px;gap:5px;justify-content:center;}
+.reactions.show{display:flex;}
+.react-btn{flex:1;padding:7px 4px;border-radius:20px;border:1px solid var(--border);background:var(--bg3);color:var(--text);cursor:pointer;font-size:11px;font-family:inherit;max-width:110px;-webkit-user-select:none;user-select:none;}
+.react-btn.fire-r{border-color:rgba(200,75,153,.4);color:#ff9dc5;}
+.react-btn.violet-r{border-color:rgba(124,77,187,.4);color:#c4a0ff;}
+.react-btn.ok-r{border-color:rgba(100,150,255,.4);color:#8aabff;}
+
+/* ── INPUT ── */
+.input-area{padding:6px 12px;flex-shrink:0;background:linear-gradient(0deg,var(--bg) 75%,transparent);padding-bottom:calc(6px + var(--safe-bot));}
+.input-row{display:flex;gap:6px;align-items:flex-end;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:24px;padding:6px 6px 6px 12px;}
+.input-row:focus-within{border-color:rgba(200,75,153,.4);}
+.chat-input{flex:1;background:transparent;border:none;outline:none;color:var(--text);font-family:inherit;font-size:16px;line-height:1.5;resize:none;max-height:88px;overflow-y:auto;}
+.chat-input::placeholder{color:var(--hint);}
+.capture-btn{background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:5px 3px;flex-shrink:0;}
+.send-btn{width:34px;height:34px;border-radius:50%;background:linear-gradient(135deg,#c84b99,#9b2d7a);border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:transform .15s;box-shadow:0 2px 8px rgba(200,75,153,.4);}
+.send-btn:active{transform:scale(.92);}
+.send-btn:disabled{opacity:.45;cursor:not-allowed;}
+.send-btn svg{fill:white;}
+
+/* ── HISTORY PANEL ── */
+.hist-header{padding:14px 14px 8px;padding-top:calc(14px + var(--safe-top));flex-shrink:0;}
+.hist-header h2{font-size:15px;font-weight:700;}
+.hist-header p{font-size:11px;color:var(--muted);margin-top:2px;}
+.cal-nav{display:flex;align-items:center;justify-content:space-between;padding:0 14px 8px;flex-shrink:0;}
+.cal-nav-btn{background:transparent;border:1px solid var(--border);color:var(--muted);cursor:pointer;border-radius:8px;padding:4px 14px;font-size:15px;font-family:inherit;}
+.cal-title{font-size:14px;font-weight:700;}
+.cal-grid{padding:0 10px;flex-shrink:0;}
+.cal-days-header{display:grid;grid-template-columns:repeat(7,1fr);margin-bottom:3px;}
+.cal-day-label{text-align:center;font-size:10px;color:var(--muted);padding:2px 0;}
+.cal-days{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;}
+.cal-cell{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:8px;cursor:pointer;position:relative;border:1px solid transparent;}
+.cal-cell.other-month .day-num{color:var(--hint);}
+.cal-cell.today{border-color:rgba(200,75,153,.5);}
+.cal-cell.has-entry{background:rgba(200,75,153,.12);}
+.cal-cell.selected{background:rgba(200,75,153,.28);border-color:rgba(200,75,153,.65);}
+.day-num{font-size:11px;color:var(--text);}
+.entry-dots{display:flex;gap:2px;margin-top:1px;}
+.entry-dot{width:3px;height:3px;border-radius:50%;background:var(--pink);}
+.day-detail{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px;border-top:1px solid var(--border);}
+.day-detail h3{font-size:12px;color:var(--muted);margin-bottom:8px;}
+.session-card{background:var(--bg3);border:1px solid var(--border);border-radius:11px;padding:9px 11px;margin-bottom:7px;}
+.session-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:5px;}
+.session-time{font-size:10px;color:var(--muted);}
+.session-badge{font-size:10px;padding:2px 7px;border-radius:10px;background:rgba(200,75,153,.18);color:#ff9dc5;}
+.session-preview{font-size:12px;color:var(--text);line-height:1.5;margin-bottom:5px;}
+.session-footer{display:flex;align-items:center;justify-content:space-between;}
+.session-count{font-size:10px;color:var(--muted);}
+.expand-btn{font-size:10px;color:var(--pink);background:transparent;border:none;cursor:pointer;font-family:inherit;}
+.session-msgs{margin-top:7px;padding-top:7px;border-top:1px solid var(--border);display:none;}
+.session-msgs.open{display:block;}
+.hist-msg{font-size:11px;margin-bottom:4px;line-height:1.4;}
+.hist-msg.user{color:#ff9dc5;text-align:right;}
+.hist-msg.ai{color:var(--muted);}
+.no-entry{text-align:center;padding:24px 10px;color:var(--muted);font-size:13px;line-height:1.7;}
+
+/* ── STATS PANEL ── */
+.stats-header{padding:14px 14px 10px;padding-top:calc(14px + var(--safe-top));flex-shrink:0;}
+.stats-header h2{font-size:15px;font-weight:700;}
+.stats-header p{font-size:11px;color:var(--muted);margin-top:2px;}
+.stats-body{flex:1;overflow-y:auto;-webkit-overflow-scrolling:touch;padding:10px 14px 20px;}
+.stat-section{margin-bottom:20px;}
+.stat-section h3{font-size:12px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;}
+.summary-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:4px;}
+.summary-card{background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 8px;text-align:center;}
+.summary-num{font-size:22px;font-weight:700;color:var(--pink);}
+.summary-label{font-size:10px;color:var(--muted);margin-top:2px;}
+/* Bar chart */
+.bar-chart{display:flex;align-items:flex-end;gap:6px;height:100px;padding:0 0 24px;position:relative;}
+.bar-chart::after{content:'';position:absolute;bottom:24px;left:0;right:0;height:1px;background:var(--border);}
+.bar-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px;}
+.bar-fill{width:100%;border-radius:4px 4px 0 0;min-height:3px;transition:height .6s cubic-bezier(.4,0,.2,1);}
+.bar-label{font-size:10px;color:var(--muted);white-space:nowrap;}
+.bar-val{font-size:10px;color:var(--text);margin-bottom:2px;}
+/* Horizontal bar chart */
+.h-bar-list{display:flex;flex-direction:column;gap:8px;}
+.h-bar-row{display:flex;align-items:center;gap:8px;}
+.h-bar-name{font-size:11px;color:var(--text);min-width:70px;flex-shrink:0;}
+.h-bar-track{flex:1;height:8px;background:rgba(255,255,255,.07);border-radius:4px;overflow:hidden;}
+.h-bar-fill{height:100%;border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1);}
+.h-bar-num{font-size:10px;color:var(--muted);min-width:24px;text-align:right;}
+/* Donut / pill chart for personas */
+.persona-bars{display:flex;flex-direction:column;gap:8px;}
+/* Trend chart (mini line) */
+.trend-wrap{position:relative;height:80px;background:var(--bg3);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+.trend-wrap canvas{position:absolute;inset:0;width:100%;height:100%;}
+.villain-list{display:flex;flex-direction:column;gap:6px;}
+.villain-row{display:flex;align-items:center;gap:8px;}
+.villain-rank{font-size:12px;width:20px;text-align:center;}
+.villain-name-txt{flex:1;font-size:12px;color:var(--text);}
+.villain-count{font-size:11px;color:var(--muted);}
+.villain-bar{flex:1;height:6px;background:rgba(255,255,255,.07);border-radius:3px;overflow:hidden;}
+.villain-bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#c84b99,#9b2d7a);}
+.empty-stats{text-align:center;padding:30px 0;color:var(--muted);font-size:13px;line-height:1.7;}
+
+/* ── TAB BAR ── */
+.tab-bar{display:flex;border-top:1px solid var(--border);flex-shrink:0;background:var(--bg);padding-bottom:var(--safe-bot);}
+.tab-btn{flex:1;padding:9px 0;background:transparent;border:none;color:var(--muted);cursor:pointer;font-family:inherit;font-size:11px;-webkit-user-select:none;user-select:none;}
+.tab-btn.active{color:var(--pink);border-top:2px solid var(--pink);}
+
+/* ── COPY MODAL (iOS fallback) ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:800;display:flex;align-items:center;justify-content:center;padding:20px;}
+.modal-overlay.hidden{display:none;}
+.modal-box{background:#1a0a2e;border:1px solid var(--border2);border-radius:16px;padding:18px;width:100%;max-width:360px;}
+.modal-box h3{font-size:14px;margin-bottom:10px;}
+.modal-box textarea{width:100%;height:160px;background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text);padding:10px;font-size:12px;font-family:inherit;resize:none;outline:none;}
+.modal-close{width:100%;padding:10px;margin-top:10px;border-radius:10px;border:none;background:var(--pink);color:#fff;font-size:13px;font-family:inherit;cursor:pointer;}
+
+/* ── APOLOGY MODE ── */
+.mode-type-btns{display:flex;gap:4px;}
+.mode-type-btn{padding:4px 12px;border-radius:16px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;font-size:11px;font-family:inherit;-webkit-user-select:none;user-select:none;transition:all .2s;}
+.mode-type-btn.active.anger{background:#c84b99;border-color:#c84b99;color:#fff;}
+.mode-type-btn.active.apology{background:#4a7fc1;border-color:#4a7fc1;color:#fff;}
+.anger-only{display:block;}.apology-only{display:none;}
+.apology-mode .anger-only{display:none !important;}.apology-mode .apology-only{display:block !important;}
+.apology-mode .top-bar{background:linear-gradient(180deg,#0a1e3d 0%,transparent 100%);}
+.apology-mode .send-btn{background:linear-gradient(135deg,#4a7fc1,#2d5a94);}
+.apology-mode .input-row:focus-within{border-color:rgba(74,127,193,.4);}
+.apology-mode .mode-btn.active{background:#4a7fc1;border-color:#4a7fc1;}
+.persona-pill.apology-p{background:rgba(74,127,193,.22);border:1px solid rgba(74,127,193,.5);color:#8ab4f8;}
+.apology-names-wrap{display:flex;flex-direction:column;gap:6px;}
+.apology-name-row{display:flex;align-items:center;gap:6px;}
+.apology-name-label{font-size:11px;color:var(--muted);white-space:nowrap;min-width:36px;}
+.apology-indicator{text-align:center;font-size:11px;color:rgba(74,127,193,.9);background:rgba(74,127,193,.1);border:1px solid rgba(74,127,193,.3);border-radius:8px;padding:5px 10px;margin:4px 14px 0;flex-shrink:0;}
+.bubble.apology-bubble{background:rgba(74,127,193,.1);border-color:rgba(74,127,193,.35);}
+
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div class="lock-screen hidden" id="lockScreen">
+  <div class="lock-box">
+    <div class="lock-icon">🔒</div>
+    <h2>내 편 AI</h2>
+    <p id="lockMsg">PIN을 입력해줘</p>
+    <div class="pin-dots" id="pinDots">
+      <div class="pin-dot" id="pd0"></div><div class="pin-dot" id="pd1"></div>
+      <div class="pin-dot" id="pd2"></div><div class="pin-dot" id="pd3"></div>
+    </div>
+    <div class="lock-err" id="lockErr"></div>
+    <div class="numpad">
+      <button class="num-btn" onclick="numTap('1')">1</button>
+      <button class="num-btn" onclick="numTap('2')">2</button>
+      <button class="num-btn" onclick="numTap('3')">3</button>
+      <button class="num-btn" onclick="numTap('4')">4</button>
+      <button class="num-btn" onclick="numTap('5')">5</button>
+      <button class="num-btn" onclick="numTap('6')">6</button>
+      <button class="num-btn" onclick="numTap('7')">7</button>
+      <button class="num-btn" onclick="numTap('8')">8</button>
+      <button class="num-btn" onclick="numTap('9')">9</button>
+      <div class="num-btn empty"></div>
+      <button class="num-btn" onclick="numTap('0')">0</button>
+      <button class="num-btn del" onclick="numDel()">⌫</button>
+    </div>
+  </div>
+</div>
+
+<!-- COPY MODAL (iOS fallback) -->
+<div class="modal-overlay hidden" id="copyModal">
+  <div class="modal-box">
+    <h3>📋 대화 내용 복사</h3>
+    <textarea id="copyText" readonly onclick="this.select()"></textarea>
+    <button class="modal-close" onclick="document.getElementById('copyModal').classList.add('hidden')">닫기</button>
+  </div>
+</div>
+
+<!-- PIN SET MODAL -->
+<div class="modal-overlay hidden" id="pinSetModal">
+  <div class="modal-box">
+    <h3 id="pinSetTitle">🔐 새 PIN 설정 (4자리)</h3>
+    <div class="pin-dots" style="justify-content:center;display:flex;gap:14px;margin:14px 0;" id="setPinDots">
+      <div class="pin-dot" id="spd0"></div><div class="pin-dot" id="spd1"></div>
+      <div class="pin-dot" id="spd2"></div><div class="pin-dot" id="spd3"></div>
+    </div>
+    <div class="lock-err" id="pinSetErr"></div>
+    <div class="numpad" style="margin:10px auto 0;max-width:240px;">
+      <button class="num-btn" onclick="setPinTap('1')">1</button>
+      <button class="num-btn" onclick="setPinTap('2')">2</button>
+      <button class="num-btn" onclick="setPinTap('3')">3</button>
+      <button class="num-btn" onclick="setPinTap('4')">4</button>
+      <button class="num-btn" onclick="setPinTap('5')">5</button>
+      <button class="num-btn" onclick="setPinTap('6')">6</button>
+      <button class="num-btn" onclick="setPinTap('7')">7</button>
+      <button class="num-btn" onclick="setPinTap('8')">8</button>
+      <button class="num-btn" onclick="setPinTap('9')">9</button>
+      <div class="num-btn empty"></div>
+      <button class="num-btn" onclick="setPinTap('0')">0</button>
+      <button class="num-btn del" onclick="setPinDel()">⌫</button>
+    </div>
+    <button class="modal-close" style="background:rgba(255,255,255,.1);color:var(--muted);margin-top:8px;" onclick="closePinModal()">취소</button>
+  </div>
+</div>
+
+<!-- APP -->
+<div class="app" id="app">
+
+  <!-- ══ CHAT PANEL ══ -->
+  <div id="panelChat" class="panel active">
+    <div class="top-bar">
+      <div class="top-row">
+        <div class="persona-display" id="personaDisplay"></div>
+        <div class="top-actions">
+          <button class="icon-btn" onclick="toggleSettings()">⚙️</button>
+          <button class="icon-btn" onclick="clearChat()">🗑️</button>
+        </div>
+      </div>
+      <div class="mood-bar">
+        <button class="mood-chip m1" onclick="insertMood('너무 속상해서 눈물날 것 같아')">😢 속상해</button>
+        <button class="mood-chip m2" onclick="insertMood('진짜 너무 화나')">😤 화남</button>
+        <button class="mood-chip m3" onclick="insertMood('짜증나서 미치겠어')">😩 짜증</button>
+        <button class="mood-chip m4" onclick="insertMood('서운해 죽겠어')">💔 서운해</button>
+      </div>
+    </div>
+    <div class="settings" id="settings">
+      <div class="setting-row">
+        <span class="setting-label">💬 모드</span>
+        <div class="mode-type-btns">
+          <button class="mode-type-btn active anger" onclick="setModeType('anger',this)">😤 분노</button>
+          <button class="mode-type-btn apology" onclick="setModeType('apology',this)">😔 사과</button>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">🤝 인원</span>
+        <div class="mode-btns">
+          <button class="mode-btn active" onclick="setMode(1,this)">1:1</button>
+          <button class="mode-btn" onclick="setMode(2,this)">1:2</button>
+          <button class="mode-btn" onclick="setMode(3,this)">1:3</button>
+        </div>
+      </div>
+      <div class="anger-only">
+      <div class="setting-row">
+        <span class="setting-label">🔥 강도</span>
+        <div class="intensity-wrap">
+          <input type="range" min="1" max="5" value="3" id="intensitySlider" step="1" oninput="updateIntensity(this.value)" style="--val:60%">
+          <span class="intensity-label" id="intensityLabel">😤 화남</span>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">😈 빌런</span>
+        <input class="text-input" id="villainInput" placeholder="상대방 이름 (ex: 팀장 박씨)" maxlength="20" oninput="villainName=this.value">
+      </div>
+      </div><!-- end anger-only -->
+      <div class="apology-only">
+        <div class="setting-row" style="align-items:flex-start;flex-direction:column;gap:6px;">
+          <span class="setting-label" style="min-width:auto;margin-bottom:2px;">😔 사과할 사람 이름</span>
+          <div class="apology-names-wrap" id="apologyNamesWrap">
+            <div class="apology-name-row">
+              <span class="apology-name-label">1번</span>
+              <input class="text-input" id="apName0" placeholder="ex: 남자친구, 팀장" maxlength="15" oninput="updateApologyName(0,this.value)">
+            </div>
+          </div>
+        </div>
+      </div>
+      <hr class="setting-divider">
+      <div class="setting-row">
+        <span class="setting-label">🔒 보안</span>
+        <div class="security-row">
+          <button class="small-btn" id="pinToggleBtn" onclick="togglePin()">PIN 잠금 꺼짐</button>
+          <button class="small-btn" id="autoLockBtn" onclick="cycleAutoLock()">자동잠금 꺼짐</button>
+        </div>
+      </div>
+    </div>
+    <div class="apology-indicator apology-only" id="apologyIndicator">😔 지금 사과 모드야 — 상대방이 직접 사과하는 중</div>
+    <div class="chat-area" id="chatArea">
+      <div class="welcome" id="welcome">
+        <div class="big">🔥</div>
+        <p>야, 나한테 다 털어놔<br>판단 없어 — 무조건 네 편이야</p>
+        <div class="quick-wrap anger-only">
+          <button class="quick-btn" onclick="quickSend('팀원이 나한테 진짜 너무했어')">팀원 때문에</button>
+          <button class="quick-btn" onclick="quickSend('남자친구가 서운하게 했어')">남자친구 때문에</button>
+          <button class="quick-btn" onclick="quickSend('오늘 하루가 진짜 너무 힘들었어')">하루가 힘들어</button>
+          <button class="quick-btn" onclick="quickSend('아무것도 하기 싫고 다 무너지는 것 같아')">다 무너져</button>
+        </div>
+        <div class="quick-wrap apology-only">
+          <button class="quick-btn" onclick="quickSend('네가 내 말을 무시했잖아')">말 무시했잖아</button>
+          <button class="quick-btn" onclick="quickSend('나한테 상처 주는 말 했잖아')">상처 줬잖아</button>
+          <button class="quick-btn" onclick="quickSend('약속을 지키지 않았잖아')">약속 어겼잖아</button>
+          <button class="quick-btn" onclick="quickSend('내 감정은 아무것도 아닌 것처럼 행동했잖아')">내 감정 무시했잖아</button>
+        </div>
+      </div>
+    </div>
+    <div class="reactions" id="reactions">
+      <button class="react-btn fire-r" onclick="react('fire')">🔥 더 화내줘</button>
+      <button class="react-btn violet-r" onclick="react('comfort')">💜 위로해줘</button>
+      <button class="react-btn ok-r" onclick="react('ok')">🥲 충분해</button>
+    </div>
+    <div class="input-area">
+      <div class="input-row">
+        <button class="capture-btn" onclick="captureChat()" title="대화 저장">📸</button>
+        <textarea class="chat-input" id="chatInput" placeholder="지금 어떤 일이 있었어? 🔥" rows="1"
+          onkeydown="handleKey(event)" oninput="autoResize(this)"></textarea>
+        <button class="send-btn" id="sendBtn" onclick="sendMessage()">
+          <svg width="15" height="15" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ HISTORY PANEL ══ -->
+  <div id="panelHistory" class="panel">
+    <div class="hist-header">
+      <h2>📅 감정 히스토리</h2>
+      <p>날짜를 눌러 그날의 기록을 확인해봐</p>
+    </div>
+    <div class="cal-nav">
+      <button class="cal-nav-btn" onclick="changeMonth(-1)">‹</button>
+      <span class="cal-title" id="calTitle"></span>
+      <button class="cal-nav-btn" onclick="changeMonth(1)">›</button>
+    </div>
+    <div class="cal-grid">
+      <div class="cal-days-header" id="calDaysHeader"></div>
+      <div class="cal-days" id="calDays"></div>
+    </div>
+    <div class="day-detail" id="dayDetail">
+      <div class="no-entry">날짜를 선택하면 그날의 기록이 나와 🗓️</div>
+    </div>
+  </div>
+
+  <!-- ══ STATS PANEL ══ -->
+  <div id="panelStats" class="panel">
+    <div class="stats-header">
+      <h2>📊 감정 통계</h2>
+      <p>네가 털어놓은 것들을 분석해봤어</p>
+    </div>
+    <div class="stats-body" id="statsBody">
+      <div class="empty-stats">아직 기록이 없어 🥺<br>채팅을 시작하면 통계가 쌓여!</div>
+    </div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar">
+    <button class="tab-btn active" id="tabChat" onclick="switchTab('chat')">💬 채팅</button>
+    <button class="tab-btn" id="tabHistory" onclick="switchTab('history')">📅 기록</button>
+    <button class="tab-btn" id="tabStats" onclick="switchTab('stats')">📊 통계</button>
+  </div>
+</div>
+
+<script>
+// ── STATE ──
+let chatMode=1,intensity=3,villainName='',messages=[],isLoading=false,settingsOpen=false;
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),selectedDate=null;
+let historyCache={};
+let pinEnabled=false,storedPinHash='',pinBuffer='',lockBuffer='';
+let autoLockMins=0,autoLockTimer=null,autoLockOptions=[0,5,15,30];
+let autoLockIdx=0;
+let isSettingPin=false,pinFirstEntry='';
+
+const INTENSITY_LABELS={1:'🌸 살살',2:'💕 공감',3:'😤 화남',4:'🤬 욕설',5:'💥 폭발'};
+const PERSONA_COLORS={fire:'#c84b99',violet:'#7c4dbb',devil:'#c0392b'};
+
+// ── APOLOGY MODE STATE ──
+let chatModeType='anger'; // 'anger' | 'apology'
+let apologyNames=['','',''];
+const APOLOGY_EMOJIS=['😔','😞','🥺'];
+
+function setModeType(type, btn){
+  chatModeType=type;
+  document.querySelectorAll('.mode-type-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  const chatPanel=document.getElementById('panelChat');
+  chatPanel.classList.toggle('apology-mode', type==='apology');
+  // Update mode btns color
+  document.querySelectorAll('.mode-btn.active').forEach(b=>{
+    b.style.background=type==='apology'?'#4a7fc1':'';
+    b.style.borderColor=type==='apology'?'#4a7fc1':'';
+  });
+  renderPersonaDisplay();
+  updateApologyNamesUI();
+}
+
+function updateApologyName(idx, val){
+  apologyNames[idx]=val;
+  renderPersonaDisplay();
+}
+
+function updateApologyNamesUI(){
+  const wrap=document.getElementById('apologyNamesWrap');
+  if(!wrap)return;
+  // Show/hide rows based on chatMode
+  const rows=wrap.querySelectorAll('.apology-name-row');
+  rows.forEach((r,i)=>r.style.display=i<chatMode?'flex':'none');
+  // Add rows if needed
+  for(let i=wrap.querySelectorAll('.apology-name-row').length;i<3;i++){
+    const row=document.createElement('div');row.className='apology-name-row';
+    row.style.display=i<chatMode?'flex':'none';
+    row.innerHTML=`<span class="apology-name-label">${i+1}번</span><input class="text-input" id="apName${i}" placeholder="ex: 남자친구, 팀장" maxlength="15" oninput="updateApologyName(${i},this.value)">`;
+    wrap.appendChild(row);
+  }
+}
+
+function getActivePersonas(){
+  if(chatModeType==='apology'){
+    return Array.from({length:chatMode},(_,i)=>({
+      key:'apology'+i,
+      name:apologyNames[i]||`상대방${chatMode>1?i+1:''}`,
+      emoji:APOLOGY_EMOJIS[i],
+      cls:['fire','violet','devil'][i],
+      isApology:true
+    }));
+  }
+  return PERSONAS.slice(0,chatMode);
+}
+
+function apologySystemPrompt(name){
+  return `너는 "${name}"야. 너는 사용자에게 잘못을 해서 지금 진심으로 사과해야 해.
+
+사용자가 말하는 내용을 잘 듣고, 네가 한 구체적인 행동을 인정하며 사과해줘.
+
+반드시 지켜야 할 규칙:
+1. "내가 [구체적으로 어떻게 했는지]해서 정말 미안해" 형식으로 사과할 것
+2. 사용자의 말에서 파악한 구체적인 잘못을 명확히 인정할 것
+3. 변명 절대 금지 — '하지만', '그래도', '사실은', '나도' 같은 말 사용 금지
+4. 사용자의 감정(서운함, 화남, 속상함)을 공감하며 인정할 것
+5. 상대방이 실제로 이렇게 사과받았으면 좋겠다 싶을 만큼 진심 어리게, 구체적으로
+6. 5-7문장, 한국어로만, 친근한 반말 말투`;
+}
+
+const PERSONAS=[
+  {key:'fire',name:'원영',emoji:'🔥',cls:'fire',
+   prompt:(v,i)=>`너는 친구 "원영"이야. 사용자 완전 편. 조언금지. 같이 분노·응원. ${v?`상대:"${v}"이름불러.`:''} ${iP(i)} 짧게(3-4문장).친구말투.한국어.`},
+  {key:'violet',name:'이서',emoji:'💜',cls:'violet',
+   prompt:(v,i)=>`너는 친구 "이서"야. 따뜻공감 친구. 조언금지. 감성적으로 편. ${v?`상대:"${v}".`:''} ${iPs(i)} 짧게(3-4문장).한국어.`},
+  {key:'devil',name:'민주',emoji:'😈',cls:'devil',
+   prompt:(v,i)=>`너는 친구 "민주"야. 극과장 드라마틱 저주캐릭터. 조언금지. ${v?`"${v}" 이름불러 저주.`:''} ${iPd(i)} 짧게(3-4문장).한국어.`}
+];
+function iP(i){return['부드럽게공감.욕설없이.','공감·살짝분개.','같이화내.가볍게욕.','진짜화나서욕.세게.','극도격하게욕분노!!'][i-1];}
+function iPs(i){return['아주부드럽게.','따뜻하게공감.','공감·같이속상.','마음아파분개.','눈물흘리듯격하게공감.'][i-1];}
+function iPd(i){return['살짝독하게.','독하게욕.','지옥이나가라류.','극도저주.','최대과장저주!!'][i-1];}
+/* getActivePersonas: 위 함수 사용 */
+
+// ── PLATFORM DETECT ──
+const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
+const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+// ── VIEWPORT HEIGHT FIX (iOS Safari) ──
+function fixViewportHeight(){
+  const h=window.innerHeight;
+  document.querySelector('.app').style.height=h+'px';
+  document.documentElement.style.setProperty('--app-h',h+'px');
+}
+window.addEventListener('resize',fixViewportHeight);
+window.addEventListener('orientationchange',()=>setTimeout(fixViewportHeight,200));
+fixViewportHeight();
+
+// iOS keyboard handling
+if(isIOS){
+  document.getElementById('chatInput').addEventListener('focus',()=>setTimeout(fixViewportHeight,300));
+  document.getElementById('chatInput').addEventListener('blur',()=>setTimeout(fixViewportHeight,300));
+}
+
+// ── INIT ──
+window.addEventListener('load',async()=>{
+  renderPersonaDisplay();
+  renderCalendar();
+  await loadAllData();
+  await checkLockOnLoad();
+  resetAutoLockTimer();
+  ['touchstart','mousedown','keydown'].forEach(e=>document.addEventListener(e,resetAutoLockTimer,{passive:true}));
+});
+
+// ── LOCK/PIN ──
+async function hashPin(pin){
+  const data=new TextEncoder().encode(pin+'nae-pyeon-2026-salt');
+  const buf=await crypto.subtle.digest('SHA-256',data);
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkLockOnLoad(){
+  try{
+    const pv=await window.storage.get('pin-hash');
+    const pe=await window.storage.get('pin-enabled');
+    if(pe&&pe.value==='1'&&pv&&pv.value){
+      storedPinHash=pv.value;pinEnabled=true;
+      updatePinUI();
+      showLockScreen();
+    }
+  }catch(e){}
+}
+
+function showLockScreen(){
+  lockBuffer='';updateLockDots();
+  document.getElementById('lockErr').textContent='';
+  document.getElementById('lockScreen').classList.remove('hidden');
+}
+function hideLockScreen(){document.getElementById('lockScreen').classList.add('hidden');}
+
+function numTap(d){
+  if(lockBuffer.length>=4)return;
+  lockBuffer+=d;updateLockDots();
+  if(lockBuffer.length===4)setTimeout(checkPin,100);
+}
+function numDel(){lockBuffer=lockBuffer.slice(0,-1);updateLockDots();}
+function updateLockDots(){
+  for(let i=0;i<4;i++){
+    const el=document.getElementById('pd'+i);
+    el.classList.toggle('filled',i<lockBuffer.length);
+  }
+}
+async function checkPin(){
+  const h=await hashPin(lockBuffer);
+  if(h===storedPinHash){hideLockScreen();document.getElementById('lockErr').textContent='';}
+  else{document.getElementById('lockErr').textContent='PIN이 틀렸어 다시 입력해봐';lockBuffer='';updateLockDots();}
+}
+
+// PIN SET MODAL
+let setPinBuf='',setPinConfirmBuf='',setPinStep=0;
+async function togglePin(){
+  if(pinEnabled){
+    pinEnabled=false;storedPinHash='';
+    try{await window.storage.set('pin-enabled','0');await window.storage.delete('pin-hash');}catch(e){}
+    updatePinUI();return;
+  }
+  openPinModal();
+}
+function openPinModal(){
+  setPinBuf='';setPinConfirmBuf='';setPinStep=0;
+  document.getElementById('pinSetTitle').textContent='🔐 PIN 설정 (4자리 입력)';
+  document.getElementById('pinSetErr').textContent='';
+  updateSetPinDots();
+  document.getElementById('pinSetModal').classList.remove('hidden');
+}
+function closePinModal(){document.getElementById('pinSetModal').classList.add('hidden');}
+function updateSetPinDots(){
+  const buf=setPinStep===0?setPinBuf:setPinConfirmBuf;
+  for(let i=0;i<4;i++){
+    document.getElementById('spd'+i).classList.toggle('filled',i<buf.length);
+  }
+}
+let firstPinEntry='';
+async function setPinTap(d){
+  if(setPinStep===0){
+    if(setPinBuf.length>=4)return;
+    setPinBuf+=d;updateSetPinDots();
+    if(setPinBuf.length===4){
+      setTimeout(()=>{
+        firstPinEntry=setPinBuf;setPinBuf='';setPinStep=1;
+        document.getElementById('pinSetTitle').textContent='🔐 한 번 더 입력해줘';
+        updateSetPinDots();
+      },150);
+    }
+  } else {
+    if(setPinConfirmBuf.length>=4)return;
+    setPinConfirmBuf+=d;updateSetPinDots();
+    if(setPinConfirmBuf.length===4){setTimeout(confirmSetPin,150);}
+  }
+}
+function setPinDel(){
+  if(setPinStep===0){setPinBuf=setPinBuf.slice(0,-1);}
+  else{setPinConfirmBuf=setPinConfirmBuf.slice(0,-1);}
+  updateSetPinDots();
+}
+async function confirmSetPin(){
+  if(setPinConfirmBuf!==firstPinEntry){
+    document.getElementById('pinSetErr').textContent='PIN이 일치하지 않아 다시 해봐';
+    setPinConfirmBuf='';setPinStep=0;firstPinEntry='';setPinBuf='';updateSetPinDots();
+    document.getElementById('pinSetTitle').textContent='🔐 PIN 설정 (4자리 입력)';
+    return;
+  }
+  const h=await hashPin(firstPinEntry);
+  storedPinHash=h;pinEnabled=true;
+  try{await window.storage.set('pin-hash',h);await window.storage.set('pin-enabled','1');}catch(e){}
+  updatePinUI();closePinModal();
+  document.getElementById('pinSetErr').textContent='';
+}
+
+function updatePinUI(){
+  const btn=document.getElementById('pinToggleBtn');
+  btn.textContent=pinEnabled?'PIN 잠금 켜짐':'PIN 잠금 꺼짐';
+  btn.classList.toggle('on',pinEnabled);
+}
+
+// Auto-lock
+function cycleAutoLock(){
+  autoLockIdx=(autoLockIdx+1)%autoLockOptions.length;
+  autoLockMins=autoLockOptions[autoLockIdx];
+  const btn=document.getElementById('autoLockBtn');
+  btn.textContent=autoLockMins===0?'자동잠금 꺼짐':`자동잠금 ${autoLockMins}분`;
+  btn.classList.toggle('on',autoLockMins>0);
+  resetAutoLockTimer();
+}
+function resetAutoLockTimer(){
+  if(autoLockTimer)clearTimeout(autoLockTimer);
+  if(pinEnabled&&autoLockMins>0){
+    autoLockTimer=setTimeout(()=>{showLockScreen();},autoLockMins*60*1000);
+  }
+}
+
+// ── TABS ──
+const TABS=['chat','history','stats'];
+function switchTab(tab){
+  TABS.forEach(t=>{
+    const panel=document.getElementById('panel'+cap(t));
+    const btn=document.getElementById('tab'+cap(t));
+    panel.classList.toggle('active',t===tab);
+    btn.classList.toggle('active',t===tab);
+  });
+  if(tab==='history'){loadAllData().then(()=>renderCalendar());}
+  if(tab==='stats'){loadAllData().then(renderStats);}
+}
+function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
+
+// ── SETTINGS ──
+function toggleSettings(){
+  settingsOpen=!settingsOpen;
+  document.getElementById('settings').classList.toggle('open',settingsOpen);
+}
+function setMode(n,btn){
+  chatMode=n;
+  document.querySelectorAll('.mode-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  if(chatModeType==='apology'){
+    btn.style.background='#4a7fc1';btn.style.borderColor='#4a7fc1';
+  }
+  renderPersonaDisplay();
+  updateApologyNamesUI();
+}
+function updateIntensity(v){
+  intensity=parseInt(v);
+  document.getElementById('intensityLabel').textContent=INTENSITY_LABELS[intensity];
+  const pct=((v-1)/4*100)+'%';
+  document.getElementById('intensitySlider').style.setProperty('--val',pct);
+}
+function renderPersonaDisplay(){
+  const cls=p=>p.isApology?'apology-p':p.cls;
+  document.getElementById('personaDisplay').innerHTML=
+    getActivePersonas().map(p=>`<div class="persona-pill ${cls(p)}">${p.emoji} ${p.name}</div>`).join('');
+  // Update apology indicator
+  const indicator=document.getElementById('apologyIndicator');
+  if(indicator&&chatModeType==='apology'){
+    const names=getActivePersonas().map(p=>p.name).join(', ');
+    indicator.textContent=`😔 사과 모드 — ${names}이(가) 직접 사과 중`;
+  }
+}
+
+// ── CHAT ──
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,88)+'px';}
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey&&!isMobile){e.preventDefault();sendMessage();}}
+function insertMood(t){const i=document.getElementById('chatInput');i.value=t;i.focus();autoResize(i);}
+function quickSend(t){document.getElementById('chatInput').value=t;sendMessage();}
+
+function addMsg(role,personaKey,content){
+  const ca=document.getElementById('chatArea');
+  document.getElementById('welcome')?.remove();
+  const p=PERSONAS.find(x=>x.key===personaKey);
+  const row=document.createElement('div');
+  row.className='msg-row '+(role==='user'?'user':'ai');
+  if(role==='ai'&&p){
+    const av=document.createElement('div');av.className='mini-av '+p.cls;av.textContent=p.emoji;
+    const wrap=document.createElement('div');wrap.className='ai-msg-wrap';
+    const nm=document.createElement('div');nm.className='persona-name';nm.textContent=p.emoji+' '+p.name;
+    const b=document.createElement('div');b.className='bubble';b.textContent=content;
+    wrap.appendChild(nm);wrap.appendChild(b);
+    row.appendChild(av);row.appendChild(wrap);
+  } else {
+    const b=document.createElement('div');b.className='bubble';b.textContent=content;row.appendChild(b);
+  }
+  ca.appendChild(row);ca.scrollTop=ca.scrollHeight;
+}
+
+function showTyping(persona){
+  const ca=document.getElementById('chatArea');
+  const row=document.createElement('div');row.className='typing-row show';row.id='typ-'+persona.key;
+  const av=document.createElement('div');av.className='mini-av '+persona.cls;av.textContent=persona.emoji;
+  const wrap=document.createElement('div');wrap.className='typing-wrap';
+  const nm=document.createElement('div');nm.className='typing-name';nm.textContent=persona.name+'이 입력중...';
+  const tb=document.createElement('div');tb.className='typing-bubble';
+  [0,1,2].forEach(()=>{const d=document.createElement('div');d.className='dot';tb.appendChild(d);});
+  wrap.appendChild(nm);wrap.appendChild(tb);row.appendChild(av);row.appendChild(wrap);
+  ca.appendChild(row);ca.scrollTop=ca.scrollHeight;
+}
+function hideTyping(k){document.getElementById('typ-'+k)?.remove();}
+
+async function callAPI(personaKey,msgs){
+  let sys;
+  if(personaKey.startsWith('apology')){
+    const idx=parseInt(personaKey.replace('apology',''))||0;
+    const name=apologyNames[idx]||`상대방${chatMode>1?idx+1:''}`;
+    sys=apologySystemPrompt(name);
+  } else {
+    const p=PERSONAS.find(x=>x.key===personaKey);
+    sys=p.prompt(villainName,intensity);
+  }
+  const isApology=personaKey.startsWith('apology');
+  const apiMsgs=msgs.filter(m=>m.role==='user'||(isApology&&m.personaKey&&m.personaKey.startsWith('apology')&&m.personaKey===personaKey)||(!isApology&&m.personaKey===personaKey))
+    .map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}));
+  if(!apiMsgs.length||apiMsgs[apiMsgs.length-1].role!=='user')return'...';
+  const res=await fetch('https://api.anthropic.com/v1/messages',{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:apiMsgs})
+  });
+  const data=await res.json();
+  return data.content?.[0]?.text||'(응답 오류)';
+}
+
+async function sendMessage(){
+  if(isLoading)return;
+  const input=document.getElementById('chatInput');
+  const text=input.value.trim();if(!text)return;
+  input.value='';input.style.height='auto';
+  isLoading=true;document.getElementById('sendBtn').disabled=true;
+  document.getElementById('reactions').classList.remove('show');
+  const t=new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'});
+  messages.push({role:'user',content:text,time:t});
+  addMsg('user',null,text);
+  for(const p of getActivePersonas()){
+    showTyping(p);await new Promise(r=>setTimeout(r,500));
+    let reply;try{reply=await callAPI(p.key,messages);}catch{reply='앗 연결이 끊겼어 ㅠ 다시 말해봐!';}
+    hideTyping(p.key);messages.push({role:'ai',personaKey:p.key,content:reply,time:t});addMsg('ai',p.key,reply);
+    if(getActivePersonas().indexOf(p)<getActivePersonas().length-1)await new Promise(r=>setTimeout(r,300));
+  }
+  document.getElementById('reactions').classList.add('show');
+  await saveTodayHistory(text);
+  isLoading=false;document.getElementById('sendBtn').disabled=false;
+}
+
+async function react(type){
+  document.getElementById('reactions').classList.remove('show');
+  const map={fire:'야 더 화내줘!! 더 욕해줘!',comfort:'이제 좀 위로해줘... 다독여줘',ok:'고마워, 충분해 🥲'};
+  document.getElementById('chatInput').value=map[type];await sendMessage();
+}
+
+function clearChat(){
+  if(!confirm('새 대화를 시작할까요?'))return;
+  messages=[];
+  const ca=document.getElementById('chatArea');
+  ca.innerHTML='<div class="welcome" id="welcome"><div class="big">🔥</div><p>야, 나한테 다 털어놔<br>판단 없어 — 무조건 네 편이야</p><div class="quick-wrap"><button class="quick-btn" onclick="quickSend(\'팀원이 나한테 진짜 너무했어\')">팀원 때문에</button><button class="quick-btn" onclick="quickSend(\'남자친구가 서운하게 했어\')">남자친구 때문에</button><button class="quick-btn" onclick="quickSend(\'오늘 하루가 진짜 너무 힘들었어\')">하루가 힘들어</button><button class="quick-btn" onclick="quickSend(\'아무것도 하기 싫고 다 무너지는 것 같아\')">다 무너져</button></div></div>';
+  document.getElementById('reactions').classList.remove('show');
+}
+
+// ── CAPTURE ──
+function captureChat(){
+  if(!messages.length){alert('대화가 없어!');return;}
+  const now=new Date().toLocaleString('ko-KR');
+  let text=`═══ 내 편 AI 대화 기록 ═══\n📅 ${now}\n`;
+  if(villainName)text+=`😈 빌런: ${villainName}\n`;
+  text+=`🔥 강도: ${INTENSITY_LABELS[intensity]}\n${'─'.repeat(28)}\n`;
+  messages.forEach(m=>{
+    const p=PERSONAS.find(x=>x.key===m.personaKey);
+    text+=m.role==='user'?`\n나: ${m.content}\n`:`${p?.emoji||'AI'} ${p?.name||'AI'}: ${m.content}\n`;
+  });
+  text+=`\n${'═'.repeat(28)}\n`;
+  if(isIOS){
+    navigator.clipboard?.writeText(text).then(()=>alert('📋 클립보드에 복사됐어!\n메모 앱에 붙여넣기 해봐')).catch(()=>{
+      document.getElementById('copyText').value=text;
+      document.getElementById('copyModal').classList.remove('hidden');
+      setTimeout(()=>document.getElementById('copyText').select(),100);
+    });
+  } else {
+    const blob=new Blob([text],{type:'text/plain;charset=utf-8'});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement('a');a.href=url;a.download=`내편AI_${new Date().toISOString().slice(0,10)}.txt`;
+    document.body.appendChild(a);a.click();document.body.removeChild(a);URL.revokeObjectURL(url);
+  }
+}
+
+// ── HISTORY ──
+function todayKey(){return new Date().toISOString().slice(0,10);}
+async function loadAllData(){
+  try{
+    const keys=await window.storage.list('hist-');
+    if(keys?.keys){
+      for(const k of keys.keys){
+        const date=k.replace('hist-','');
+        const v=await window.storage.get(k);
+        if(v)historyCache[date]=JSON.parse(v.value);
+      }
+    }
+  }catch(e){}
+}
+async function saveTodayHistory(firstMsg){
+  const key=todayKey();
+  const existing=historyCache[key]||[];
+  const session={
+    time:new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'}),
+    intensity,villain:villainName,
+    preview:firstMsg.slice(0,40)+(firstMsg.length>40?'...':''),
+    msgs:messages.map(m=>({r:m.role,p:m.personaKey,c:m.content}))
+  };
+  const last=existing[existing.length-1];
+  if(last&&messages.length>2)existing[existing.length-1].msgs=session.msgs;
+  else existing.push(session);
+  historyCache[key]=existing;
+  try{await window.storage.set('hist-'+key,JSON.stringify(existing));}catch(e){}
+}
+
+// ── CALENDAR ──
+function changeMonth(d){
+  calMonth+=d;
+  if(calMonth>11){calMonth=0;calYear++;}if(calMonth<0){calMonth=11;calYear--;}
+  selectedDate=null;
+  document.getElementById('dayDetail').innerHTML='<div class="no-entry">날짜를 선택하면 그날의 기록이 나와 🗓️</div>';
+  renderCalendar();
+}
+function renderCalendar(){
+  const days=['일','월','화','수','목','금','토'];
+  document.getElementById('calTitle').textContent=`${calYear}년 ${calMonth+1}월`;
+  document.getElementById('calDaysHeader').innerHTML=days.map(d=>`<div class="cal-day-label">${d}</div>`).join('');
+  const grid=document.getElementById('calDays');grid.innerHTML='';
+  const today=new Date();
+  const first=new Date(calYear,calMonth,1);
+  const startDay=first.getDay();
+  const dim=new Date(calYear,calMonth+1,0).getDate();
+  const prevDim=new Date(calYear,calMonth,0).getDate();
+  for(let i=startDay-1;i>=0;i--){const c=document.createElement('div');c.className='cal-cell other-month';c.innerHTML=`<div class="day-num">${prevDim-i}</div>`;grid.appendChild(c);}
+  for(let d=1;d<=dim;d++){
+    const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
+    const ds=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const s=historyCache[ds]||[];
+    const c=document.createElement('div');
+    c.className='cal-cell'+(isToday?' today':'')+(s.length?' has-entry':'')+(selectedDate===ds?' selected':'');
+    c.innerHTML=`<div class="day-num">${d}</div>${s.length?`<div class="entry-dots">${'<div class="entry-dot"></div>'.repeat(Math.min(s.length,3))}</div>`:''}`;
+    c.onclick=()=>selectDate(ds,d);grid.appendChild(c);
+  }
+  const rem=(7-((startDay+dim)%7))%7;
+  for(let d=1;d<=rem;d++){const c=document.createElement('div');c.className='cal-cell other-month';c.innerHTML=`<div class="day-num">${d}</div>`;grid.appendChild(c);}
+}
+function selectDate(ds,d){
+  selectedDate=ds;renderCalendar();
+  const sessions=historyCache[ds]||[];
+  const det=document.getElementById('dayDetail');
+  if(!sessions.length){det.innerHTML=`<div class="no-entry">${calMonth+1}월 ${d}일은 기록이 없어 🥺</div>`;return;}
+  det.innerHTML=`<h3>${calMonth+1}월 ${d}일의 기록 (${sessions.length}개 세션)</h3>`+
+    sessions.map((s,i)=>`<div class="session-card">
+      <div class="session-meta">
+        <span class="session-time">🕐 ${s.time}</span>
+        <span class="session-badge">${INTENSITY_LABELS[s.intensity]||''}</span>
+        ${s.villain?`<span class="session-time">😈 ${s.villain}</span>`:''}
+      </div>
+      <div class="session-preview">"${s.preview}"</div>
+      <div class="session-footer">
+        <span class="session-count">💬 ${s.msgs?.length||0}개 메시지</span>
+        <button class="expand-btn" onclick="toggleSession(${i})">펼쳐보기 ▾</button>
+      </div>
+      <div class="session-msgs" id="sm-${i}">
+        ${(s.msgs||[]).map(m=>{const p=PERSONAS.find(x=>x.key===m.p);return`<div class="hist-msg ${m.r}"><span style="font-weight:700">${m.r==='user'?'나':(p?.emoji+' '+p?.name)||'AI'}</span>: ${m.c}</div>`;}).join('')}
+      </div>
+    </div>`).join('');
+}
+function toggleSession(i){document.getElementById('sm-'+i)?.classList.toggle('open');}
+
+// ── STATS ──
+function renderStats(){
+  const allSessions=[];
+  Object.entries(historyCache).forEach(([date,sessions])=>{sessions.forEach(s=>allSessions.push({...s,date}));});
+  const body=document.getElementById('statsBody');
+  if(!allSessions.length){body.innerHTML='<div class="empty-stats">아직 기록이 없어 🥺<br>채팅을 시작하면 통계가 쌓여!</div>';return;}
+
+  // Summary
+  const totalMsgs=allSessions.reduce((a,s)=>a+(s.msgs?.length||0),0);
+  const activeDays=Object.keys(historyCache).filter(d=>historyCache[d].length>0).length;
+  const avgIntensity=allSessions.length?Math.round(allSessions.reduce((a,s)=>a+s.intensity,0)/allSessions.length):0;
+
+  // Intensity distribution
+  const intensityCount={1:0,2:0,3:0,4:0,5:0};
+  allSessions.forEach(s=>intensityCount[s.intensity]=(intensityCount[s.intensity]||0)+1);
+  const maxIntensity=Math.max(...Object.values(intensityCount))||1;
+  const intensityColors=['#8aabff','#c4a0ff','#ffbb55','#ff9dc5','#ff6b6b'];
+
+  // Villains
+  const villainCount={};
+  allSessions.forEach(s=>{if(s.villain){villainCount[s.villain]=(villainCount[s.villain]||0)+1;}});
+  const topVillains=Object.entries(villainCount).sort((a,b)=>b[1]-a[1]).slice(0,5);
+
+  // Persona usage
+  const personaCount={fire:0,violet:0,devil:0};
+  allSessions.forEach(s=>(s.msgs||[]).forEach(m=>{if(m.r==='ai'&&m.p)personaCount[m.p]=(personaCount[m.p]||0)+1;}));
+  const totalPersonaMsgs=Object.values(personaCount).reduce((a,v)=>a+v,0)||1;
+
+  // Last 7 days trend
+  const last7=[];
+  for(let i=6;i>=0;i--){
+    const d=new Date();d.setDate(d.getDate()-i);
+    const dk=d.toISOString().slice(0,10);
+    const n=(historyCache[dk]||[]).length;
+    last7.push({label:`${d.getMonth()+1}/${d.getDate()}`,count:n});
+  }
+  const max7=Math.max(...last7.map(x=>x.count))||1;
+
+  body.innerHTML=`
+    <div class="stat-section">
+      <h3>📌 전체 요약</h3>
+      <div class="summary-grid">
+        <div class="summary-card"><div class="summary-num">${allSessions.length}</div><div class="summary-label">총 세션</div></div>
+        <div class="summary-card"><div class="summary-num">${activeDays}</div><div class="summary-label">기록한 날</div></div>
+        <div class="summary-card"><div class="summary-num">${INTENSITY_LABELS[avgIntensity]?.split(' ')[0]||'?'}</div><div class="summary-label">평균 강도</div></div>
+      </div>
+    </div>
+    <div class="stat-section">
+      <h3>🔥 감정 강도 분포</h3>
+      <div class="bar-chart" id="intensityChart"></div>
+    </div>
+    <div class="stat-section">
+      <h3>📅 최근 7일 세션 수</h3>
+      <div class="bar-chart" id="trendChart"></div>
+    </div>
+    ${topVillains.length?`
+    <div class="stat-section">
+      <h3>😈 빌런 명예의 전당</h3>
+      <div class="villain-list" id="villainList"></div>
+    </div>`:''}
+    <div class="stat-section">
+      <h3>🤝 AI 친구 호출 횟수</h3>
+      <div class="persona-bars" id="personaBars"></div>
+    </div>
+  `;
+
+  // Render intensity bars
+  const ic=document.getElementById('intensityChart');
+  [1,2,3,4,5].forEach((lv,i)=>{
+    const pct=intensityCount[lv]/maxIntensity*100;
+    const col=document.createElement('div');col.className='bar-col';
+    col.innerHTML=`<div class="bar-val">${intensityCount[lv]}</div><div class="bar-fill" style="height:${pct}%;background:${intensityColors[i]};width:100%"></div><div class="bar-label">${INTENSITY_LABELS[lv].split(' ')[0]}</div>`;
+    ic.appendChild(col);
+  });
+
+  // Render trend
+  const tc=document.getElementById('trendChart');
+  last7.forEach(d=>{
+    const pct=d.count/max7*100;
+    const col=document.createElement('div');col.className='bar-col';
+    col.innerHTML=`<div class="bar-val">${d.count||''}</div><div class="bar-fill" style="height:${Math.max(pct,d.count?5:0)}%;background:linear-gradient(180deg,#c84b99,#7c4dbb);width:100%"></div><div class="bar-label">${d.label}</div>`;
+    tc.appendChild(col);
+  });
+
+  // Villains
+  if(topVillains.length){
+    const vl=document.getElementById('villainList');
+    const maxV=topVillains[0][1]||1;
+    const ranks=['🥇','🥈','🥉','4️⃣','5️⃣'];
+    topVillains.forEach(([name,cnt],i)=>{
+      const row=document.createElement('div');row.className='h-bar-row';
+      row.innerHTML=`<span class="villain-rank">${ranks[i]}</span><span class="villain-name-txt">${name}</span><div class="villain-bar"><div class="villain-bar-fill" style="width:${cnt/maxV*100}%"></div></div><span class="villain-count">${cnt}번</span>`;
+      vl.appendChild(row);
+    });
+  }
+
+  // Personas
+  const pb=document.getElementById('personaBars');
+  PERSONAS.forEach(p=>{
+    const cnt=personaCount[p.key]||0;const pct=cnt/totalPersonaMsgs*100;
+    const row=document.createElement('div');row.className='h-bar-row';
+    row.innerHTML=`<span class="villain-rank">${p.emoji}</span><span class="villain-name-txt">${p.name}</span><div class="h-bar-track"><div class="h-bar-fill" style="width:${pct}%;background:${PERSONA_COLORS[p.key]}"></div></div><span class="h-bar-num">${cnt}</span>`;
+    pb.appendChild(row);
+  });
+}
+</script>
+</body>
+</html>
