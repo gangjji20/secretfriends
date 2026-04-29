@@ -856,7 +856,7 @@ async function testApiKey(){
     let ok = false;
     if(apiProvider==='gemini'){
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${val}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${val}`,
         { method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({contents:[{role:'user',parts:[{text:'안녕'}]}],generationConfig:{maxOutputTokens:10}}) }
       );
@@ -883,7 +883,7 @@ async function testApiKey(){
     btn.style.background = 'rgba(192,57,43,.3)';
     errEl.style.color = '#ff8888';
     if(msg.includes('403')||msg.includes('API_KEY')||msg.includes('PERMISSION_DENIED')||msg.includes('invalid')){
-      errEl.textContent = '🔑 키가 잘못됐어 — 다시 복사해서 붙여넣어봐';
+      errEl.textContent = msg.includes('529') || msg.includes('credit') || msg.includes('balance') ? '💳 크레딧 부족 — 클로드는 유료야. 제미나이(무료)로 바꿔봐!' : '🔑 키가 잘못됐어 — 다시 복사해서 붙여넣어봐';
     } else if(msg.includes('Failed to fetch')||msg.includes('NetworkError')||msg.includes('Load failed')){
       errEl.textContent = '🌐 네트워크 오류 — 인터넷 확인해봐';
     } else if(msg.includes('429')||msg.includes('RESOURCE_EXHAUSTED')){
@@ -1239,7 +1239,7 @@ async function callAPI(personaKey,msgs){
       geminiMsgs.unshift({role:'user',parts:[{text:'안녕'}]});
     }
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${userApiKey}`,
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
