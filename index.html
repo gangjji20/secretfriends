@@ -991,14 +991,24 @@ async function testApiKey(){
       if(d.error) throw new Error('['+d.error.code+'] '+d.error.message);
       ok = !!d.choices?.[0];
     } else if(apiProvider==='gemini'){
-      const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${val}`,
-        { method:'POST', headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({contents:[{role:'user',parts:[{text:'안녕'}]}],generationConfig:{maxOutputTokens:10}}) }
-      );
-      const d = await res.json();
-      if(d.error) throw new Error('['+d.error.code+'] '+d.error.message);
-      ok = !!d.candidates?.[0];
+      const testModels=['gemini-2.0-flash-lite','gemini-1.5-flash-8b'];
+      let d=null;
+      for(const tm of testModels){
+        const res=await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${tm}:generateContent?key=${val}`,
+          {method:'POST',headers:{'Content-Type':'application/json'},
+           body:JSON.stringify({contents:[{role:'user',parts:[{text:'안녕'}]}],generationConfig:{maxOutputTokens:10}})}
+        );
+        d=await res.json();
+        if(!d.error||d.error.code!==404)break;
+      }
+      if(d.error){
+        const c=d.error.code; const m=d.error.message||'';
+        if(c===429||m.includes('RESOURCE_EXHAUSTED'))
+          throw new Error('429: 잠깐 요청 한도 초과 — 1분 후 다시 눌러봐');
+        throw new Error('['+c+'] '+m);
+      }
+      ok=!!d.candidates?.[0];
     } else {
       const res = await fetch('https://api.anthropic.com/v1/messages',{
         method:'POST',
@@ -1349,6 +1359,37 @@ function showTyping(persona){
 }
 function hideTyping(k){document.getElementById('typ-'+k)?.remove();}
 
+// 429 시 자동 대기 후 재시도
+async function fetchWithRetry(fetchFn, maxRetries=2){
+  for(let attempt=0; attempt<=maxRetries; attempt++){
+    try{
+      const res = await fetchFn();
+      const data = await res.json();
+      // 429: rate limit
+      if(res.status===429 || data?.error?.code===429 || 
+         (data?.error?.message||'').includes('429') ||
+         (data?.error?.status||'').includes('RESOURCE_EXHAUSTED')){
+        if(attempt===maxRetries) throw new Error('429_FINAL');
+        const waitSec = [4, 10][attempt];
+        // Show countdown in chat
+        const ca=document.getElementById('chatArea');
+        const notice=document.createElement('div');
+        notice.className='timestamp';notice.id='rate-notice';
+        notice.textContent=`⏱️ 잠깐, ${waitSec}초 후 재시도...`;
+        ca.appendChild(notice);ca.scrollTop=ca.scrollHeight;
+        await new Promise(r=>setTimeout(r,waitSec*1000));
+        document.getElementById('rate-notice')?.remove();
+        continue;
+      }
+      return data;
+    } catch(e){
+      if(e.message==='429_FINAL') throw new Error('⏱️ 요청이 너무 많아 — 1분 후 다시 보내봐 (무료 한도: 분당 15~30회)');
+      if(attempt===maxRetries) throw e;
+      await new Promise(r=>setTimeout(r,2000));
+    }
+  }
+}
+
 async function callAPI(personaKey,msgs){
   let sys;
   if(personaKey.startsWith('apology')){
@@ -1411,22 +1452,33 @@ async function callAPI(personaKey,msgs){
     if(geminiMsgs.length&&geminiMsgs[0].role!=='user'){
       geminiMsgs.unshift({role:'user',parts:[{text:'안녕'}]});
     }
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-lite:generateContent?key=${userApiKey}`,
-      {
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({
-          system_instruction:{parts:[{text:sys}]},
-          contents: geminiMsgs,
-          generationConfig:{maxOutputTokens:800,temperature:1.0}
-        })
+    // 모델 fallback: lite 실패 시 flash-8b 시도
+    const geminiModels=['gemini-2.0-flash-lite','gemini-1.5-flash-8b'];
+    const geminiBody=JSON.stringify({
+      system_instruction:{parts:[{text:sys}]},
+      contents:geminiMsgs,
+      generationConfig:{maxOutputTokens:800,temperature:1.0}
+    });
+    let gData=null;
+    for(const gModel of geminiModels){
+      const gRes=await fetch(
+        `https://generativelanguage.googleapis.com/v1beta/models/${gModel}:generateContent?key=${userApiKey}`,
+        {method:'POST',headers:{'Content-Type':'application/json'},body:geminiBody}
+      );
+      gData=await gRes.json();
+      if(!gData.error)break;
+      if(gData.error.code===404)continue;
+      break;
+    }
+    if(gData.error){
+      const gCode=gData.error.code||0;
+      const gMsg=gData.error.message||'';
+      if(gCode===429||gMsg.includes('RESOURCE_EXHAUSTED')){
+        throw new Error('⏱️ 제미나이 한도 초과 — 1분 기다렸다 다시 보내봐 (무료: 분당 15회)');
       }
-    );
-    if(!res.ok){ let errBody=''; try{const e=await res.json();errBody=e?.error?.message||'';}catch(e){} throw new Error('HTTP '+res.status+(errBody?' — '+errBody:'')); }
-    const data = await res.json();
-    if(data.error){ console.error('[Gemini error]', data.error); throw new Error('['+data.error.code+'] '+data.error.message); }
-    responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(응답 오류)';
+      throw new Error('['+gCode+'] '+gMsg);
+    }
+    responseText=gData.candidates?.[0]?.content?.parts?.[0]?.text||'(응답 오류)';
   } else {
     // Anthropic Claude API
     const res=await fetch('https://api.anthropic.com/v1/messages',{
@@ -1483,7 +1535,7 @@ async function sendMessage(){
       }
     }
     hideTyping(p.key);messages.push({role:'ai',personaKey:p.key,content:reply,time:t});addMsg('ai',p.key,reply);
-    if(getActivePersonas().indexOf(p)<getActivePersonas().length-1)await new Promise(r=>setTimeout(r,300));
+    if(getActivePersonas().indexOf(p)<getActivePersonas().length-1)await new Promise(r=>setTimeout(r,1500)); // RPM 절약
   }
   document.getElementById('reactions').classList.add('show');
   await saveTodayHistory(text);
