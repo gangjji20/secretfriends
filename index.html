@@ -976,7 +976,7 @@ async function testApiKey(){
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+val,'HTTP-Referer':'https://gangjji20.github.io'},
-        body:JSON.stringify({model:'deepseek/deepseek-chat-v3-0324:free',messages:[{role:'user',content:'안녕'}],max_tokens:10})
+        body:JSON.stringify({model:'deepseek/deepseek-chat:free',messages:[{role:'user',content:'안녕'}],max_tokens:10})
       });
       const d = await res.json();
       if(d.error) throw new Error('['+d.error.code+'] '+(d.error.message||JSON.stringify(d.error)));
@@ -1370,7 +1370,7 @@ async function callAPI(personaKey,msgs){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+userApiKey,'HTTP-Referer':'https://gangjji20.github.io'},
       body:JSON.stringify({
-        model:'deepseek/deepseek-chat-v3-0324:free',
+        model:'deepseek/deepseek-chat:free',
         messages:[{role:'system',content:sys},...apiMsgs],
         max_tokens:800,temperature:1.0
       })
