@@ -239,6 +239,30 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .apology-indicator{text-align:center;font-size:11px;color:rgba(74,127,193,.9);background:rgba(74,127,193,.1);border:1px solid rgba(74,127,193,.3);border-radius:8px;padding:5px 10px;margin:4px 14px 0;flex-shrink:0;}
 .bubble.apology-bubble{background:rgba(74,127,193,.1);border-color:rgba(74,127,193,.35);}
 
+
+/* ── ROOM CODE SCREEN ── */
+.room-screen{position:fixed;inset:0;background:#0d0520;z-index:998;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:20px;}
+.room-screen.hidden{display:none;}
+.room-box{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;max-width:340px;}
+.room-icon{font-size:44px;margin-bottom:2px;}
+.room-box h2{font-size:19px;font-weight:700;color:var(--text);}
+.room-box p{font-size:12px;color:var(--muted);text-align:center;line-height:1.7;}
+.room-code-display{font-size:30px;font-weight:700;letter-spacing:6px;color:var(--pink);background:rgba(200,75,153,.12);border:2px dashed rgba(200,75,153,.4);border-radius:14px;padding:14px 24px;width:100%;text-align:center;font-family:monospace;cursor:pointer;transition:background .2s;}
+.room-code-display:active{background:rgba(200,75,153,.22);}
+.room-warn{font-size:11px;color:#ffbb55;background:rgba(255,187,85,.1);border:1px solid rgba(255,187,85,.3);border-radius:8px;padding:8px 12px;text-align:center;line-height:1.6;width:100%;}
+.room-btn{width:100%;padding:11px;border-radius:12px;border:none;font-size:13px;font-family:inherit;cursor:pointer;font-weight:700;-webkit-user-select:none;user-select:none;}
+.room-btn.primary{background:linear-gradient(135deg,#c84b99,#9b2d7a);color:#fff;}
+.room-btn.secondary{background:rgba(255,255,255,.07);border:1px solid var(--border2);color:var(--muted);}
+.room-btn.danger{background:rgba(192,57,43,.15);border:1px solid rgba(192,57,43,.4);color:#ff8888;}
+.room-divider{width:100%;border:none;border-top:1px solid var(--border);margin:2px 0;}
+.enter-code-wrap{width:100%;display:flex;flex-direction:column;gap:8px;}
+.code-input{width:100%;background:var(--bg3);border:2px solid var(--border2);border-radius:10px;color:var(--text);padding:10px 14px;font-size:20px;font-family:monospace;outline:none;text-align:center;letter-spacing:4px;text-transform:uppercase;}
+.code-input:focus{border-color:rgba(200,75,153,.6);}
+.copy-toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(200,75,153,.9);color:#fff;padding:8px 20px;border-radius:20px;font-size:12px;opacity:0;transition:opacity .3s;pointer-events:none;z-index:1000;}
+.copy-toast.show{opacity:1;}
+/* Settings code display */
+.code-badge{font-size:13px;font-weight:700;color:var(--pink);letter-spacing:3px;font-family:monospace;}
+
 </style>
 </head>
 <body>
@@ -270,6 +294,36 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
     </div>
   </div>
 </div>
+
+
+<!-- ROOM CODE SCREEN -->
+<div class="room-screen hidden" id="roomScreen">
+  <div class="room-box">
+    <div class="room-icon">🔑</div>
+    <h2>내 방 코드</h2>
+    <div id="roomNewSection">
+      <p style="margin-bottom:4px;">처음이야! 아래 코드가 <strong style="color:var(--pink)">나만의 비밀 열쇠</strong>야<br>기록은 이 코드로만 열 수 있어</p>
+      <div class="room-code-display" id="roomCodeDisplay" onclick="copyRoomCode()">------</div>
+      <div class="room-warn">⚠️ 이 코드를 꼭 저장해줘!<br>잃어버리면 기록을 복구할 수 없어</div>
+      <button class="room-btn primary" onclick="copyRoomCode()" style="margin-top:2px;">📋 코드 복사하기</button>
+      <button class="room-btn primary" onclick="confirmNewRoomCode()">이 코드로 시작할게!</button>
+      <hr class="room-divider">
+      <button class="room-btn secondary" onclick="showEnterSection()">기존 코드가 있어 →</button>
+    </div>
+    <div id="roomEnterSection" style="display:none;width:100%;display:none;flex-direction:column;gap:8px;align-items:center;">
+      <p>이전에 썼던 코드를 입력해줘</p>
+      <div class="enter-code-wrap">
+        <input class="code-input" id="existingCodeInput" placeholder="ABC123" maxlength="8"
+          oninput="this.value=this.value.toUpperCase()" autocomplete="off" autocorrect="off" spellcheck="false">
+        <button class="room-btn primary" onclick="useExistingCode()">이 코드로 열기 🔓</button>
+        <button class="room-btn secondary" onclick="showNewSection()">← 새 코드 생성으로</button>
+      </div>
+      <p id="codeErr" style="font-size:11px;color:#ff6b6b;height:14px;"></p>
+    </div>
+  </div>
+</div>
+<!-- Copy toast -->
+<div class="copy-toast" id="copyToast">📋 복사됐어!</div>
 
 <!-- COPY MODAL (iOS fallback) -->
 <div class="modal-overlay hidden" id="copyModal">
@@ -365,6 +419,14 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
               <input class="text-input" id="apName0" placeholder="ex: 남자친구, 팀장" maxlength="15" oninput="updateApologyName(0,this.value)">
             </div>
           </div>
+        </div>
+      </div>
+      <div class="setting-row">
+        <span class="setting-label">🔑 내 코드</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span class="code-badge" id="settingsCode">------</span>
+          <button class="small-btn" onclick="copyRoomCode()">복사</button>
+          <button class="small-btn" onclick="promptChangeCode()">변경</button>
         </div>
       </div>
       <hr class="setting-divider">
@@ -544,6 +606,95 @@ function iPs(i){return['아주부드럽게.','따뜻하게공감.','공감·같�
 function iPd(i){return['살짝독하게.','독하게욕.','지옥이나가라류.','극도저주.','최대과장저주!!'][i-1];}
 /* getActivePersonas: 위 함수 사용 */
 
+
+// ── ROOM CODE ──
+let roomCode = '';
+let generatedCode = '';
+
+function generateCode(){
+  const chars='ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  return Array.from({length:6},()=>chars[Math.floor(Math.random()*chars.length)]).join('');
+}
+
+async function initRoomCode(){
+  try{
+    const stored=await window.storage.get('my-room-code');
+    if(stored&&stored.value&&stored.value.length>=4){
+      roomCode=stored.value;
+      updateCodeDisplay();
+      await loadAllData();
+      renderCalendar();
+      return;
+    }
+  }catch(e){}
+  showRoomSetup();
+}
+
+function showRoomSetup(){
+  generatedCode=generateCode();
+  document.getElementById('roomCodeDisplay').textContent=generatedCode;
+  document.getElementById('roomScreen').classList.remove('hidden');
+}
+
+function showEnterSection(){
+  document.getElementById('roomNewSection').style.display='none';
+  const s=document.getElementById('roomEnterSection');
+  s.style.display='flex';s.style.flexDirection='column';
+}
+function showNewSection(){
+  document.getElementById('roomEnterSection').style.display='none';
+  document.getElementById('roomNewSection').style.display='block';
+}
+
+async function confirmNewRoomCode(){
+  roomCode=generatedCode;
+  try{await window.storage.set('my-room-code',roomCode);}catch(e){}
+  document.getElementById('roomScreen').classList.add('hidden');
+  updateCodeDisplay();
+  await loadAllData();
+  renderCalendar();
+}
+
+async function useExistingCode(){
+  const code=document.getElementById('existingCodeInput').value.trim().toUpperCase();
+  if(code.length<4){
+    document.getElementById('codeErr').textContent='코드는 4자 이상이어야 해';return;
+  }
+  roomCode=code;
+  try{await window.storage.set('my-room-code',roomCode);}catch(e){}
+  document.getElementById('roomScreen').classList.add('hidden');
+  updateCodeDisplay();
+  await loadAllData();
+  renderCalendar();
+  historyCache={};
+  await loadAllData();
+  renderCalendar();
+}
+
+function updateCodeDisplay(){
+  const el=document.getElementById('settingsCode');
+  if(el)el.textContent=roomCode||'------';
+}
+
+function copyRoomCode(){
+  const code=roomCode||generatedCode;
+  navigator.clipboard?.writeText(code).catch(()=>{});
+  showToast('🔑 코드 복사됐어! 잘 보관해줘');
+}
+
+function showToast(msg){
+  const t=document.getElementById('copyToast');
+  t.textContent=msg;t.classList.add('show');
+  setTimeout(()=>t.classList.remove('show'),2200);
+}
+
+function promptChangeCode(){
+  if(!confirm('코드를 변경하면 현재 기록에 접근할 수 없게 돼.\n정말 변경할까? (현재 코드를 꼭 먼저 저장해!)'))return;
+  historyCache={};
+  showRoomSetup();
+  showNewSection();
+}
+
 // ── PLATFORM DETECT ──
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
 const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -568,8 +719,7 @@ if(isIOS){
 window.addEventListener('load',async()=>{
   renderPersonaDisplay();
   renderCalendar();
-  await loadAllData();
-  await checkLockOnLoad();
+  await checkLockOnLoad(); // → calls initRoomCode → calls loadAllData
   resetAutoLockTimer();
   ['touchstart','mousedown','keydown'].forEach(e=>document.addEventListener(e,resetAutoLockTimer,{passive:true}));
 });
@@ -589,8 +739,10 @@ async function checkLockOnLoad(){
       storedPinHash=pv.value;pinEnabled=true;
       updatePinUI();
       showLockScreen();
+      return; // initRoomCode called from hideLockScreen after unlock
     }
   }catch(e){}
+  await initRoomCode(); // No PIN — init room code directly
 }
 
 function showLockScreen(){
@@ -598,7 +750,10 @@ function showLockScreen(){
   document.getElementById('lockErr').textContent='';
   document.getElementById('lockScreen').classList.remove('hidden');
 }
-function hideLockScreen(){document.getElementById('lockScreen').classList.add('hidden');}
+function hideLockScreen(){
+  document.getElementById('lockScreen').classList.add('hidden');
+  if(!roomCode)initRoomCode();
+}
 
 function numTap(d){
   if(lockBuffer.length>=4)return;
@@ -871,12 +1026,16 @@ function captureChat(){
 
 // ── HISTORY ──
 function todayKey(){return new Date().toISOString().slice(0,10);}
+function roomKey(date){return 'hist-'+(roomCode||'default')+'-'+date;}
 async function loadAllData(){
+  if(!roomCode)return;
+  historyCache={};
   try{
-    const keys=await window.storage.list('hist-');
+    const prefix='hist-'+roomCode+'-';
+    const keys=await window.storage.list(prefix);
     if(keys?.keys){
       for(const k of keys.keys){
-        const date=k.replace('hist-','');
+        const date=k.replace(prefix,'');
         const v=await window.storage.get(k);
         if(v)historyCache[date]=JSON.parse(v.value);
       }
@@ -896,7 +1055,7 @@ async function saveTodayHistory(firstMsg){
   if(last&&messages.length>2)existing[existing.length-1].msgs=session.msgs;
   else existing.push(session);
   historyCache[key]=existing;
-  try{await window.storage.set('hist-'+key,JSON.stringify(existing));}catch(e){}
+  try{await window.storage.set(roomKey(key),JSON.stringify(existing));}catch(e){}
 }
 
 // ── CALENDAR ──
