@@ -349,7 +349,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
       🌐 <strong>한국어 특화 무료 AI!</strong><br>
       1. <a href="https://openrouter.ai/keys" target="_blank" style="color:#6effc8;">openrouter.ai/keys</a> → Create Key<br>
       2. Google/GitHub 로그인 → 키 생성<br>
-      무료 모델: <strong style="color:#6effc8;">DeepSeek, Qwen 등 한국어 우수</strong><br>
+      무료 모델: <strong style="color:#6effc8;">DeepSeek R1 (추론 특화, 한국어 최상)</strong><br>
       키 형식: <code style="color:#6effc8;">sk-or-v1-...</code>
     </div>
     <div class="provider-hint groq" id="hintGroq">
@@ -976,7 +976,7 @@ async function testApiKey(){
       const res = await fetch('https://openrouter.ai/api/v1/chat/completions',{
         method:'POST',
         headers:{'Content-Type':'application/json','Authorization':'Bearer '+val,'HTTP-Referer':'https://gangjji20.github.io'},
-        body:JSON.stringify({model:'deepseek/deepseek-chat:free',messages:[{role:'user',content:'안녕'}],max_tokens:10})
+        body:JSON.stringify({model:'deepseek/deepseek-r1:free',messages:[{role:'user',content:'안녕'}],max_tokens:10})
       });
       const d = await res.json();
       if(d.error) throw new Error('['+d.error.code+'] '+(d.error.message||JSON.stringify(d.error)));
@@ -1370,7 +1370,7 @@ async function callAPI(personaKey,msgs){
       method:'POST',
       headers:{'Content-Type':'application/json','Authorization':'Bearer '+userApiKey,'HTTP-Referer':'https://gangjji20.github.io'},
       body:JSON.stringify({
-        model:'deepseek/deepseek-chat:free',
+        model:'deepseek/deepseek-r1:free',
         messages:[{role:'system',content:sys},...apiMsgs],
         max_tokens:800,temperature:1.0
       })
