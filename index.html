@@ -7,6 +7,10 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <title>내 편 AI</title>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<!-- VERSION: 2026-04-29-v4 -->
 <style>
 *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 :root{
@@ -287,6 +291,8 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .provider-hint{font-size:11px;text-align:center;padding:6px 10px;border-radius:8px;line-height:1.6;width:100%;}
 .provider-hint.gemini{background:rgba(26,107,58,.15);border:1px solid rgba(26,107,58,.35);color:#7fffc4;}
 .provider-hint.anthropic{background:rgba(90,32,128,.15);border:1px solid rgba(90,32,128,.35);color:#c8a0ff;}
+
+.ver-badge{position:fixed;bottom:calc(50px + var(–safe-bot));right:8px;font-size:9px;color:rgba(255,255,255,.2);z-index:1;pointer-events:none;}
 
 </style>
 </head>
@@ -1244,8 +1250,9 @@ async function callAPI(personaKey,msgs){
         })
       }
     );
+    if(!res.ok){ let errBody=''; try{const e=await res.json();errBody=e?.error?.message||'';}catch(e){} throw new Error('HTTP '+res.status+(errBody?' — '+errBody:'')); }
     const data = await res.json();
-    if(data.error) throw new Error(data.error.message);
+    if(data.error){ console.error('[Gemini error]', data.error); throw new Error('['+data.error.code+'] '+data.error.message); }
     responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(응답 오류)';
   } else {
     // Anthropic Claude API
@@ -1259,8 +1266,9 @@ async function callAPI(personaKey,msgs){
       },
       body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:apiMsgs})
     });
+    if(!res.ok){ let errBody=''; try{const e=await res.json();errBody=JSON.stringify(e?.error||e);}catch(e){} throw new Error('HTTP '+res.status+(errBody?' — '+errBody:'')); }
     const data=await res.json();
-    if(data.error) throw new Error(JSON.stringify(data.error));
+    if(data.error){ console.error('[Claude error]', data.error); throw new Error(JSON.stringify(data.error)); }
     responseText = data.content?.[0]?.text||'(응답 오류)';
   }
   return responseText;
@@ -1280,20 +1288,25 @@ async function sendMessage(){
     showTyping(p);await new Promise(r=>setTimeout(r,500));
     let reply;
     try{
-      if(!userApiKey){ reply='⚠️ API 키가 없어! ⚙️ 설정에서 연결해줘'; }
-      else{ reply=await callAPI(p.key,messages); }
-    }catch(err){
-      const msg=err?.message||String(err);
-      if(msg.includes('Failed to fetch')||msg.includes('NetworkError')||msg.includes('Load failed')){
-        reply='🌐 네트워크 오류 — 인터넷 연결 확인해봐';
-      } else if(msg.includes('API_KEY')||msg.includes('401')||msg.includes('403')||msg.includes('PERMISSION')){
-        reply='🔑 API 키 오류 — ⚙️ 설정에서 키를 다시 확인해줘';
-      } else if(msg.includes('SAFETY')||msg.includes('blocked')){
-        reply='😅 이 내용은 AI가 답변을 거부했어, 다르게 말해봐';
-      } else if(msg.includes('quota')||msg.includes('QUOTA')){
-        reply='📊 오늘 무료 한도 다 썼어 — 내일 다시 써봐';
+      if(!userApiKey){
+        reply='⚠️ API 키 없음 — ⚙️ 설정에서 연결해줘';
       } else {
-        reply='❌ '+msg.slice(0,100);
+        reply = await callAPI(p.key, messages);
+        if(!reply || reply === '...') reply = '(응답 없음 — 다시 말해봐)';
+      }
+    } catch(err){
+      console.error('[내편AI] callAPI error:', err);
+      const msg = (err?.message || String(err) || '알수없는오류');
+      if(msg.includes('Failed to fetch') || msg.includes('NetworkError') || msg.includes('Load failed') || msg.includes('fetch')){
+        reply = '🌐 네트워크 오류 — 인터넷 연결 확인해봐';
+      } else if(msg.includes('401') || msg.includes('403') || msg.includes('API_KEY') || msg.includes('PERMISSION') || msg.includes('invalid') || msg.includes('API key')){
+        reply = '🔑 API 키 오류 — ⚙️ 설정에서 키 재입력해줘';
+      } else if(msg.includes('429') || msg.includes('RESOURCE_EXHAUSTED') || msg.includes('quota') || msg.includes('QUOTA')){
+        reply = '⏱️ 요청 한도 초과 — 잠깐 뒤에 다시 해봐';
+      } else if(msg.includes('SAFETY') || msg.includes('blocked')){
+        reply = '😅 이 내용은 AI가 거부했어, 다르게 말해봐';
+      } else {
+        reply = '❌ 오류: ' + msg.slice(0, 120);
       }
     }
     hideTyping(p.key);messages.push({role:'ai',personaKey:p.key,content:reply,time:t});addMsg('ai',p.key,reply);
