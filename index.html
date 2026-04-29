@@ -6,7 +6,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<title>내 편 AI</title>
+<title>내 편 AI v4.1</title>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
@@ -336,6 +336,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   <div class="apikey-box">
     <div class="apikey-icon">🤖</div>
     <h2>AI 연결 설정</h2>
+    <p style="font-size:10px;color:var(--hint);margin-top:-8px;">v4.1</p>
     <p class="desc" style="margin-bottom:2px;">AI 제공사를 선택하고 API 키를 입력해줘<br>키는 <strong style="color:var(--pink)">이 기기 안에만</strong> 저장돼</p>
     <!-- Provider toggle -->
     <div class="provider-tabs">
@@ -482,6 +483,13 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
           <button class="small-btn" onclick="showApiKeyScreen()">변경</button>
         </div>
       </div>
+      <div class="setting-row" id="groqFallbackRow" style="display:none;">
+        <span class="setting-label" style="font-size:10px;">⚡백업키</span>
+        <div style="display:flex;align-items:center;gap:4px;flex:1;">
+          <input class="text-input" id="groqFallbackInput" placeholder="Groq 백업키 gsk_..." 
+            style="font-size:12px;padding:4px 8px;" oninput="saveGroqFallback(this.value)">
+        </div>
+      </div>
       <div class="setting-row">
         <span class="setting-label">💬 모드</span>
         <div class="mode-type-btns">
@@ -617,6 +625,15 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 </div>
 
 <script>
+// Global error handler
+window.onerror = function(msg, src, line, col, err){
+  console.error('[내편AI 오류]', msg, src, line, col);
+  return false;
+};
+window.addEventListener('unhandledrejection', e=>{
+  console.error('[내편AI Promise 오류]', e.reason);
+});
+
 // ── STATE ──
 let chatMode=1,intensity=3,villainName='',messages=[],isLoading=false,settingsOpen=false;
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),selectedDate=null;
@@ -1042,6 +1059,22 @@ async function testApiKey(){
   }
 }
 
+
+async function saveGroqFallback(val){
+  val = val.trim();
+  if(val.length > 5) await storeSet('groq-fallback-key', val);
+}
+
+async function loadGroqFallback(){
+  try{
+    const v = await storeGet('groq-fallback-key');
+    if(v && v.value){
+      const inp = document.getElementById('groqFallbackInput');
+      if(inp) inp.value = v.value;
+    }
+  }catch(e){}
+}
+
 function showApiKeyScreen(){
   document.getElementById('apikeyScreen').classList.remove('hidden');
   selectProvider(apiProvider); // restore current provider tabs
@@ -1120,11 +1153,41 @@ if(isIOS){
 
 // ── INIT ──
 window.addEventListener('load',async()=>{
+  // Detect running environment
+  const isArtifact = location.hostname.includes('claude.ai') || 
+                     location.hostname.includes('anthropic') ||
+                     location.href.includes('artifact') ||
+                     (location.protocol==='blob:') ||
+                     (location.hostname==='' && location.protocol!=='file:');
+  
+  if(isArtifact){
+    // Running inside Claude.ai artifact viewer - can't make external API calls
+    document.body.innerHTML = `
+      <div style="background:#1a0a2e;min-height:100vh;display:flex;align-items:center;justify-content:center;font-family:sans-serif;color:#f0e6ff;padding:24px;">
+        <div style="max-width:340px;text-align:center;">
+          <div style="font-size:48px;margin-bottom:16px;">📱</div>
+          <h2 style="font-size:18px;margin-bottom:12px;">GitHub Pages에서 열어줘!</h2>
+          <p style="font-size:13px;color:#b388cc;line-height:1.8;margin-bottom:20px;">
+            이 앱은 Claude.ai 내부에서는 외부 API 호출이 차단돼서 작동 안 해.<br><br>
+            이 파일을 <strong style="color:#ff9dc5;">GitHub Pages</strong>에 올려서 열어야 해!
+          </p>
+          <div style="background:rgba(200,75,153,.1);border:1px solid rgba(200,75,153,.3);border-radius:12px;padding:14px;font-size:12px;color:#ff9dc5;line-height:1.8;text-align:left;">
+            <strong>배포 방법:</strong><br>
+            1. 파일 다운로드 (Claude 채팅 > 📎 파일 탭)<br>
+            2. github.com → 본인 레포 업로드<br>
+            3. Settings → Pages → Deploy from main<br>
+            4. <code style="color:#c4a0ff;">gangjji20.github.io</code> 에서 열기
+          </div>
+        </div>
+      </div>`;
+    return;
+  }
+
   // file:// CORS warning
   if(location.protocol==='file:'){
     const warn=document.createElement('div');
     warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2000;background:#7a3800;color:#ffd;font-size:12px;padding:8px 14px;text-align:center;line-height:1.6;';
-    warn.innerHTML='⚠️ 파일로 직접 열면 CORS 오류 발생해. <b>claude.ai</b>의 아티팩트 뷰어에서 열거나, GitHub Pages 등에 호스팅해줘.';
+    warn.innerHTML='⚠️ 파일로 직접 열면 CORS 오류 발생해. GitHub Pages에 올려서 열어줘.';
     document.body.appendChild(warn);
   }
   renderPersonaDisplay();
@@ -1292,6 +1355,12 @@ function cap(s){return s.charAt(0).toUpperCase()+s.slice(1);}
 function toggleSettings(){
   settingsOpen=!settingsOpen;
   document.getElementById('settings').classList.toggle('open',settingsOpen);
+  if(settingsOpen){
+    // 메인 API가 Gemini면 Groq 백업키 행 보이기
+    const row=document.getElementById('groqFallbackRow');
+    if(row) row.style.display = apiProvider==='gemini' ? 'flex' : 'none';
+    loadGroqFallback();
+  }
 }
 function setMode(n,btn){
   chatMode=n;
@@ -1474,7 +1543,20 @@ async function callAPI(personaKey,msgs){
       const gCode=gData.error.code||0;
       const gMsg=gData.error.message||'';
       if(gCode===429||gMsg.includes('RESOURCE_EXHAUSTED')){
-        throw new Error('⏱️ 제미나이 한도 초과 — 1분 기다렸다 다시 보내봐 (무료: 분당 15회)');
+        // 자동으로 Groq fallback 시도
+        const groqKey = await storeGet('groq-fallback-key');
+        if(groqKey && groqKey.value){
+          console.log('[내편AI] Gemini 429 → Groq fallback 시도');
+          const gfRes = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+            method:'POST',
+            headers:{'Content-Type':'application/json','Authorization':'Bearer '+groqKey.value},
+            body:JSON.stringify({model:'llama-3.3-70b-versatile',messages:[{role:'system',content:sys},...apiMsgs],max_tokens:800})
+          });
+          const gfData = await gfRes.json();
+          if(!gfData.error) return gfData.choices?.[0]?.message?.content||'(응답 없음)';
+        }
+        throw new Error('⏱️ 제미나이 한도 초과 (분당 15회) — 잠깐 기다렸다 다시 보내봐
+💡 설정에서 ⚡Groq 키도 함께 등록하면 자동 전환돼!');
       }
       throw new Error('['+gCode+'] '+gMsg);
     }
