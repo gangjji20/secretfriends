@@ -287,7 +287,9 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 .provider-tabs{display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(–border2);width:100%;}
 .provider-tab{flex:1;padding:9px 4px;background:transparent;border:none;color:var(–muted);cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;transition:all .2s;text-align:center;}
 .provider-tab.active.gemini{background:#1a6b3a;color:#7fffc4;}
-.provider-tab.active.anthropic{background:#5a2080;color:#e0aaff;}
+.provider-tab.active.anthropic{background:#5a2080;border-color:#5a2080;color:#e0aaff;}
+.provider-tab.active.groq{background:#b45309;border-color:#b45309;color:#fde68a;}
+.provider-hint.groq{background:rgba(180,83,9,.15);border:1px solid rgba(180,83,9,.4);color:#fde68a;font-size:11px;text-align:center;padding:6px 10px;border-radius:8px;line-height:1.6;width:100%;}
 .provider-hint{font-size:11px;text-align:center;padding:6px 10px;border-radius:8px;line-height:1.6;width:100%;}
 .provider-hint.gemini{background:rgba(26,107,58,.15);border:1px solid rgba(26,107,58,.35);color:#7fffc4;}
 .provider-hint.anthropic{background:rgba(90,32,128,.15);border:1px solid rgba(90,32,128,.35);color:#c8a0ff;}
@@ -336,11 +338,19 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
     <p class="desc" style="margin-bottom:2px;">AI 제공사를 선택하고 API 키를 입력해줘<br>키는 <strong style="color:var(--pink)">이 기기 안에만</strong> 저장돼</p>
     <!-- Provider toggle -->
     <div class="provider-tabs">
-      <button class="provider-tab gemini active" id="tabGemini" onclick="selectProvider('gemini')">✨ 제미나이 (무료)</button>
+      <button class="provider-tab groq active" id="tabGroq" onclick="selectProvider('groq')">⚡ Groq (무료)</button>
+      <button class="provider-tab gemini" id="tabGemini" onclick="selectProvider('gemini')">✨ 제미나이</button>
       <button class="provider-tab anthropic" id="tabAnthropic" onclick="selectProvider('anthropic')">🤖 클로드</button>
     </div>
     <!-- Hint per provider -->
-    <div class="provider-hint gemini" id="hintGemini">
+    <div class="provider-hint groq" id="hintGroq">
+      ⚡ <strong>완전 무료! 카드 없음!</strong> Groq Console에서 발급<br>
+      1. <a href="https://console.groq.com/keys" target="_blank" style="color:#fde68a;">console.groq.com/keys</a> → Create API Key<br>
+      2. Google/GitHub 계정으로 로그인 → 키 생성!<br>
+      한도: <strong style="color:#fde68a;">분당 30회, 하루 14,400회</strong><br>
+      키 형식: <code style="color:#fde68a;">gsk_...</code>
+    </div>
+    <div class="provider-hint gemini hidden" id="hintGemini">
       ✅ <strong>완전 무료!</strong> Google AI Studio에서 발급<br>
       1. <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#7fffc4;">aistudio.google.com</a> → Get API Key<br>
       2. Google 계정으로 로그인 → 키 생성 완료!<br>
@@ -355,7 +365,7 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
     <!-- Key input -->
     <div class="api-input-wrap">
       <input class="api-key-input" id="apiKeyInput" type="password"
-        placeholder="AIzaSy..." autocomplete="off" autocorrect="off" spellcheck="false">
+        placeholder="gsk_..." autocomplete="off" autocorrect="off" spellcheck="false">
       <button class="eye-btn" onclick="toggleApiKeyVis()">👁️</button>
     </div>
     <button class="room-btn secondary" style="width:100%;margin-bottom:4px;" id="testBtn" onclick="testApiKey()">🔌 연결 테스트</button>
@@ -783,18 +793,23 @@ function promptChangeCode(){
 // ── API KEY ──
 let userApiKey = '';
 
-let apiProvider = 'gemini'; // 'gemini' | 'anthropic'
+let apiProvider = 'groq'; // 'groq' | 'gemini' | 'anthropic'
 
 function selectProvider(p){
   apiProvider = p;
-  document.getElementById('tabGemini').classList.toggle('active', p==='gemini');
-  document.getElementById('tabAnthropic').classList.toggle('active', p==='anthropic');
-  const hG = document.getElementById('hintGemini');
-  const hA = document.getElementById('hintAnthropic');
-  if(hG) hG.classList.toggle('hidden', p!=='gemini');
-  if(hA) hA.classList.toggle('hidden', p!=='anthropic');
-  const inp = document.getElementById('apiKeyInput');
-  if(inp) inp.placeholder = p==='gemini' ? 'AIzaSy...' : 'sk-ant-...';
+  ['tabGroq','tabGemini','tabAnthropic'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.remove('active');
+  });
+  const tabMap={groq:'tabGroq',gemini:'tabGemini',anthropic:'tabAnthropic'};
+  document.getElementById(tabMap[p])?.classList.add('active');
+  ['hintGroq','hintGemini','hintAnthropic'].forEach(id=>{
+    const el=document.getElementById(id);
+    if(el) el.classList.toggle('hidden', id!=='hint'+p.charAt(0).toUpperCase()+p.slice(1));
+  });
+  const placeholders={groq:'gsk_...',gemini:'AIzaSy...',anthropic:'sk-ant-...'};
+  const inp=document.getElementById('apiKeyInput');
+  if(inp) inp.placeholder=placeholders[p]||'API 키 입력...';
 }
 
 // ── STORAGE LAYER (localStorage primary, window.storage fallback) ──
@@ -834,29 +849,54 @@ async function initApiKey(){
     if(storedProvider && storedProvider.value) apiProvider = storedProvider.value;
     const key = stored && stored.value;
     const valid = key && (
+      (apiProvider==='groq' && key.startsWith('gsk_') && key.length > 10) ||
       (apiProvider==='gemini' && key.startsWith('AIza') && key.length > 15) ||
       (apiProvider==='anthropic' && key.startsWith('sk-') && key.length > 20)
     );
+    // Auto-detect provider from key format
+    if(!valid && key){
+      if(key.startsWith('gsk_')) apiProvider='groq';
+      else if(key.startsWith('AIza')) apiProvider='gemini';
+      else if(key.startsWith('sk-')) apiProvider='anthropic';
+    }
     if(valid){ userApiKey = key; updateApiKeyStatus(); return true; }
   }catch(e){}
   return false;
 }
 
 
+let testCooldown = false;
 async function testApiKey(){
   const val = document.getElementById('apiKeyInput').value.trim();
   const btn = document.getElementById('testBtn');
   const errEl = document.getElementById('apiKeyErr');
   if(!val){ errEl.textContent='키를 먼저 입력해줘'; return; }
+  if(testCooldown){ errEl.textContent='⏳ 잠깐, 직전 테스트 완료 기다려줘'; return; }
+  testCooldown = true;
+  setTimeout(()=>testCooldown=false, 8000);
   
   btn.textContent='⏳ 테스트 중...'; btn.disabled=true;
   errEl.textContent='';
   
   try{
+    // Auto-detect from key value
+    if(val.startsWith('gsk_')) apiProvider='groq';
+    else if(val.startsWith('AIza')) apiProvider='gemini';
+    else if(val.startsWith('sk-')) apiProvider='anthropic';
+    selectProvider(apiProvider);
     let ok = false;
-    if(apiProvider==='gemini'){
+    if(apiProvider==='groq'){
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+        method:'POST',
+        headers:{'Content-Type':'application/json','Authorization':'Bearer '+val},
+        body:JSON.stringify({model:'llama-3.1-8b-instant',messages:[{role:'user',content:'안녕'}],max_tokens:10})
+      });
+      const d = await res.json();
+      if(d.error) throw new Error('['+d.error.code+'] '+d.error.message);
+      ok = !!d.choices?.[0];
+    } else if(apiProvider==='gemini'){
       const res = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${val}`,
+        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${val}`,
         { method:'POST', headers:{'Content-Type':'application/json'},
           body:JSON.stringify({contents:[{role:'user',parts:[{text:'안녕'}]}],generationConfig:{maxOutputTokens:10}}) }
       );
@@ -887,12 +927,12 @@ async function testApiKey(){
     } else if(msg.includes('Failed to fetch')||msg.includes('NetworkError')||msg.includes('Load failed')){
       errEl.textContent = '🌐 네트워크 오류 — 인터넷 확인해봐';
     } else if(msg.includes('429')||msg.includes('RESOURCE_EXHAUSTED')){
-      errEl.textContent = '⏱️ 요청 한도 초과 — 잠깐 뒤에 다시 눌러봐';
+      errEl.textContent = '⏱️ 요청 한도 초과 — 1분 뒤 다시 눌러봐 (무료 한도: 분당 15회)';
     } else {
       errEl.textContent = '오류: '+msg.slice(0,80);
     }
   } finally{
-    setTimeout(()=>{ btn.disabled=false; if(!btn.textContent.includes('성공')) btn.textContent='🔌 연결 테스트'; },3000);
+    setTimeout(()=>{ btn.disabled=false; btn.style.background=''; if(!btn.textContent.includes('성공')) btn.textContent='🔌 연결 테스트'; },5000);
   }
 }
 
@@ -908,12 +948,18 @@ function showApiKeyScreen(){
 async function saveApiKey(){
   const val = document.getElementById('apiKeyInput').value.trim();
   const errEl = document.getElementById('apiKeyErr');
-  if(apiProvider==='gemini'){
+  // Auto-detect provider from key format
+  if(val.startsWith('gsk_')) apiProvider='groq';
+  else if(val.startsWith('AIza')) apiProvider='gemini';
+  else if(val.startsWith('sk-')) apiProvider='anthropic';
+  if(apiProvider==='groq'){
+    if(!val.startsWith('gsk_')){errEl.textContent='Groq 키는 gsk_... 형식이야';return;}
+  } else if(apiProvider==='gemini'){
     if(!val.startsWith('AIza')){errEl.textContent='제미나이 키는 AIzaSy... 형식이야';return;}
-    if(val.length < 15){errEl.textContent='키가 너무 짧아, 다시 확인해봐';return;}
+    if(val.length < 15){errEl.textContent='키가 너무 짧아';return;}
   } else {
     if(!val.startsWith('sk-')){errEl.textContent='클로드 키는 sk-ant-... 형식이야';return;}
-    if(val.length < 20){errEl.textContent='키가 너무 짧아, 다시 확인해봐';return;}
+    if(val.length < 20){errEl.textContent='키가 너무 짧아';return;}
   }
   userApiKey = val;
   try{ await storeSet('user-api-key', val); await storeSet('api-provider', apiProvider); }catch(e){}
@@ -934,7 +980,7 @@ function updateApiKeyStatus(){
   const el = document.getElementById('apiKeyStatus');
   if(!el) return;
   if(!userApiKey){ el.textContent='미설정'; return; }
-  const providerLabel = apiProvider==='gemini' ? '✨제미나이' : '🤖클로드';
+  const providerLabel = apiProvider==='groq' ? '⚡Groq' : apiProvider==='gemini' ? '✨제미나이' : '🤖클로드';
   el.textContent = providerLabel + ' ...'+userApiKey.slice(-4);
 }
 
@@ -1219,7 +1265,21 @@ async function callAPI(personaKey,msgs){
     .map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}));
   if(!apiMsgs.length||apiMsgs[apiMsgs.length-1].role!=='user')return'...';
   let responseText = '';
-  if(apiProvider === 'gemini'){
+  if(apiProvider === 'groq'){
+    const res = await fetch('https://api.groq.com/openai/v1/chat/completions',{
+      method:'POST',
+      headers:{'Content-Type':'application/json','Authorization':'Bearer '+userApiKey},
+      body:JSON.stringify({
+        model:'llama-3.1-8b-instant',
+        messages:[{role:'system',content:sys},...apiMsgs],
+        max_tokens:800,
+        temperature:1.0
+      })
+    });
+    const data = await res.json();
+    if(data.error) throw new Error('['+data.error.code+'] '+data.error.message);
+    responseText = data.choices?.[0]?.message?.content || '(응답 없음)';
+  } else if(apiProvider === 'gemini'){
     // Google Gemini API (gemini-1.5-flash — free tier)
     // Gemini requires strict user/model alternation
     const rawGemini = apiMsgs.map(m=>({
@@ -1239,7 +1299,7 @@ async function callAPI(personaKey,msgs){
       geminiMsgs.unshift({role:'user',parts:[{text:'안녕'}]});
     }
     const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${userApiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${userApiKey}`,
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
