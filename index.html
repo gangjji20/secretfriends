@@ -689,7 +689,7 @@ function generateCode(){
 
 async function initRoomCode(){
   try{
-    const stored=await window.storage.get('my-room-code');
+    const stored=await storeGet('my-room-code');
     if(stored&&stored.value&&stored.value.length>=4){
       roomCode=stored.value;
       updateCodeDisplay();
@@ -719,7 +719,7 @@ function showNewSection(){
 
 async function confirmNewRoomCode(){
   roomCode=generatedCode;
-  try{await window.storage.set('my-room-code',roomCode);}catch(e){}
+  try{await storeSet('my-room-code',roomCode);}catch(e){}
   document.getElementById('roomScreen').classList.add('hidden');
   updateCodeDisplay();
   await loadAllData();
@@ -732,7 +732,7 @@ async function useExistingCode(){
     document.getElementById('codeErr').textContent='코드는 4자 이상이어야 해';return;
   }
   roomCode=code;
-  try{await window.storage.set('my-room-code',roomCode);}catch(e){}
+  try{await storeSet('my-room-code',roomCode);}catch(e){}
   document.getElementById('roomScreen').classList.add('hidden');
   updateCodeDisplay();
   await loadAllData();
@@ -784,10 +784,40 @@ function selectProvider(p){
   if(inp) inp.placeholder = p==='gemini' ? 'AIzaSy...' : 'sk-ant-...';
 }
 
+// ── STORAGE LAYER (localStorage primary, window.storage fallback) ──
+async function storeGet(key){
+  // Try localStorage first (always available)
+  try{ const v=localStorage.getItem(key); if(v!==null)return{value:v}; }catch(e){}
+  // Fallback to window.storage (Claude.ai artifact env)
+  try{ if(window.storage){ const v=await window.storage.get(key); if(v)return v; } }catch(e){}
+  return null;
+}
+async function storeSet(key, val){
+  try{ localStorage.setItem(key, val); }catch(e){}
+  try{ if(window.storage) await window.storage.set(key, val); }catch(e){}
+}
+async function storeList(prefix){
+  const keys=[];
+  try{
+    for(let i=0;i<localStorage.length;i++){
+      const k=localStorage.key(i);
+      if(k&&k.startsWith(prefix))keys.push(k);
+    }
+  }catch(e){}
+  // Also check window.storage
+  try{
+    if(window.storage){
+      const r=await window.storage.list(prefix);
+      if(r&&r.keys) r.keys.forEach(k=>{ if(!keys.includes(k)) keys.push(k); });
+    }
+  }catch(e){}
+  return{keys};
+}
+
 async function initApiKey(){
   try{
-    const storedProvider = await window.storage.get('api-provider');
-    const stored = await window.storage.get('user-api-key');
+    const storedProvider = await storeGet('api-provider');
+    const stored = await storeGet('user-api-key');
     if(storedProvider && storedProvider.value) apiProvider = storedProvider.value;
     const key = stored && stored.value;
     const valid = key && (
@@ -819,13 +849,13 @@ async function saveApiKey(){
     if(val.length < 20){errEl.textContent='키가 너무 짧아, 다시 확인해봐';return;}
   }
   userApiKey = val;
-  try{ await window.storage.set('user-api-key', val); await window.storage.set('api-provider', apiProvider); }catch(e){}
+  try{ await storeSet('user-api-key', val); await storeSet('api-provider', apiProvider); }catch(e){}
   document.getElementById('apikeyScreen').classList.add('hidden');
   updateApiKeyStatus();
   // Continue init chain: check PIN then room code
   try{
-    const pv=await window.storage.get('pin-hash');
-    const pe=await window.storage.get('pin-enabled');
+    const pv=await storeGet('pin-hash');
+    const pe=await storeGet('pin-enabled');
     if(pe&&pe.value==='1'&&pv&&pv.value){
       storedPinHash=pv.value;pinEnabled=true;updatePinUI();showLockScreen();return;
     }
@@ -868,9 +898,16 @@ if(isIOS){
 
 // ── INIT ──
 window.addEventListener('load',async()=>{
+  // file:// CORS warning
+  if(location.protocol==='file:'){
+    const warn=document.createElement('div');
+    warn.style.cssText='position:fixed;top:0;left:0;right:0;z-index:2000;background:#7a3800;color:#ffd;font-size:12px;padding:8px 14px;text-align:center;line-height:1.6;';
+    warn.innerHTML='⚠️ 파일로 직접 열면 CORS 오류 발생해. <b>claude.ai</b>의 아티팩트 뷰어에서 열거나, GitHub Pages 등에 호스팅해줘.';
+    document.body.appendChild(warn);
+  }
   renderPersonaDisplay();
   renderCalendar();
-  await checkLockOnLoad(); // → calls initRoomCode → calls loadAllData
+  await checkLockOnLoad();
   resetAutoLockTimer();
   ['touchstart','mousedown','keydown'].forEach(e=>document.addEventListener(e,resetAutoLockTimer,{passive:true}));
 });
@@ -891,8 +928,8 @@ async function checkLockOnLoad(){
   }
   // Step 2: Check PIN lock
   try{
-    const pv=await window.storage.get('pin-hash');
-    const pe=await window.storage.get('pin-enabled');
+    const pv=await storeGet('pin-hash');
+    const pe=await storeGet('pin-enabled');
     if(pe&&pe.value==='1'&&pv&&pv.value){
       storedPinHash=pv.value;pinEnabled=true;
       updatePinUI();
@@ -937,7 +974,7 @@ let setPinBuf='',setPinConfirmBuf='',setPinStep=0;
 async function togglePin(){
   if(pinEnabled){
     pinEnabled=false;storedPinHash='';
-    try{await window.storage.set('pin-enabled','0');await window.storage.delete('pin-hash');}catch(e){}
+    try{await storeSet('pin-enabled','0');localStorage.removeItem('pin-hash');}catch(e){}
     updatePinUI();return;
   }
   openPinModal();
@@ -988,7 +1025,7 @@ async function confirmSetPin(){
   }
   const h=await hashPin(firstPinEntry);
   storedPinHash=h;pinEnabled=true;
-  try{await window.storage.set('pin-hash',h);await window.storage.set('pin-enabled','1');}catch(e){}
+  try{await storeSet('pin-hash',h);await storeSet('pin-enabled','1');}catch(e){}
   updatePinUI();closePinModal();
   document.getElementById('pinSetErr').textContent='';
 }
@@ -1117,17 +1154,30 @@ async function callAPI(personaKey,msgs){
   let responseText = '';
   if(apiProvider === 'gemini'){
     // Google Gemini API (gemini-1.5-flash — free tier)
-    const geminiMsgs = apiMsgs.map(m=>({
+    // Gemini requires strict user/model alternation
+    const rawGemini = apiMsgs.map(m=>({
       role: m.role === 'assistant' ? 'model' : 'user',
       parts:[{text: m.content}]
     }));
+    // Merge consecutive same-role messages
+    const geminiMsgs = rawGemini.reduce((acc,cur)=>{
+      const last=acc[acc.length-1];
+      if(last&&last.role===cur.role){
+        last.parts[0].text += '\n' + cur.parts[0].text;
+      } else { acc.push({...cur, parts:[{text:cur.parts[0].text}]}); }
+      return acc;
+    },[]);
+    // Must start with user
+    if(geminiMsgs.length&&geminiMsgs[0].role!=='user'){
+      geminiMsgs.unshift({role:'user',parts:[{text:'안녕'}]});
+    }
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`,
       {
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          systemInstruction:{parts:[{text:sys}]},
+          system_instruction:{parts:[{text:sys}]},
           contents: geminiMsgs,
           generationConfig:{maxOutputTokens:800,temperature:1.0}
         })
@@ -1167,7 +1217,22 @@ async function sendMessage(){
   addMsg('user',null,text);
   for(const p of getActivePersonas()){
     showTyping(p);await new Promise(r=>setTimeout(r,500));
-    let reply;try{reply=await callAPI(p.key,messages);}catch{reply='앗 연결이 끊겼어 ㅠ 다시 말해봐!';}
+    let reply;
+    try{
+      if(!userApiKey){ reply='⚠️ API 키가 없어! ⚙️ 설정에서 연결해줘'; }
+      else{ reply=await callAPI(p.key,messages); }
+    }catch(err){
+      const msg=err?.message||String(err);
+      if(msg.includes('Failed to fetch')||msg.includes('NetworkError')||msg.includes('Load failed')){
+        reply='🌐 네트워크 오류 — 인터넷 연결 확인해봐';
+      } else if(msg.includes('API_KEY')||msg.includes('401')||msg.includes('403')||msg.includes('PERMISSION')){
+        reply='🔑 API 키 오류 — ⚙️ 설정에서 키를 다시 확인해줘';
+      } else if(msg.includes('SAFETY')||msg.includes('blocked')){
+        reply='😅 이 내용은 AI가 답변을 거부했어, 다르게 말해봐';
+      } else {
+        reply='❌ 오류: '+msg.slice(0,80);
+      }
+    }
     hideTyping(p.key);messages.push({role:'ai',personaKey:p.key,content:reply,time:t});addMsg('ai',p.key,reply);
     if(getActivePersonas().indexOf(p)<getActivePersonas().length-1)await new Promise(r=>setTimeout(r,300));
   }
@@ -1224,11 +1289,11 @@ async function loadAllData(){
   historyCache={};
   try{
     const prefix='hist-'+roomCode+'-';
-    const keys=await window.storage.list(prefix);
+    const keys=await storeList(prefix);
     if(keys?.keys){
       for(const k of keys.keys){
         const date=k.replace(prefix,'');
-        const v=await window.storage.get(k);
+        const v=await storeGet(k);
         if(v)historyCache[date]=JSON.parse(v.value);
       }
     }
@@ -1247,7 +1312,7 @@ async function saveTodayHistory(firstMsg){
   if(last&&messages.length>2)existing[existing.length-1].msgs=session.msgs;
   else existing.push(session);
   historyCache[key]=existing;
-  try{await window.storage.set(roomKey(key),JSON.stringify(existing));}catch(e){}
+  try{await storeSet(roomKey(key),JSON.stringify(existing));}catch(e){}
 }
 
 // ── CALENDAR ──
