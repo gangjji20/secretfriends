@@ -263,6 +263,33 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
 /* Settings code display */
 .code-badge{font-size:13px;font-weight:700;color:var(--pink);letter-spacing:3px;font-family:monospace;}
 
+
+/* ── API KEY SCREEN ── */
+.apikey-screen{position:fixed;inset:0;background:#0d0520;z-index:997;display:flex;align-items:center;justify-content:center;flex-direction:column;padding:24px;}
+.apikey-screen.hidden{display:none;}
+.hidden{display:none !important;}
+.apikey-box{display:flex;flex-direction:column;align-items:center;gap:14px;width:100%;max-width:360px;}
+.apikey-icon{font-size:44px;}
+.apikey-box h2{font-size:18px;font-weight:700;color:var(--text);}
+.apikey-box .desc{font-size:12px;color:var(--muted);text-align:center;line-height:1.8;}
+.apikey-box .desc a{color:var(--pink);text-decoration:none;}
+.api-input-wrap{width:100%;position:relative;}
+.api-key-input{width:100%;background:rgba(255,255,255,.07);border:2px solid var(--border2);border-radius:12px;color:var(--text);padding:12px 40px 12px 14px;font-size:13px;font-family:monospace;outline:none;letter-spacing:.5px;}
+.api-key-input:focus{border-color:rgba(200,75,153,.6);}
+.api-key-input::placeholder{color:var(--hint);letter-spacing:0;}
+.eye-btn{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:4px;}
+.apikey-info{font-size:11px;background:rgba(74,127,193,.1);border:1px solid rgba(74,127,193,.3);border-radius:8px;padding:10px 12px;color:#8ab4f8;line-height:1.7;width:100%;text-align:left;}
+.apikey-info strong{color:#a8c8ff;}
+
+
+.provider-tabs{display:flex;gap:0;border-radius:10px;overflow:hidden;border:1px solid var(--border2);width:100%;}
+.provider-tab{flex:1;padding:9px 4px;background:transparent;border:none;color:var(--muted);cursor:pointer;font-size:12px;font-family:inherit;font-weight:700;transition:all .2s;text-align:center;}
+.provider-tab.active.gemini{background:#1a6b3a;color:#7fffc4;}
+.provider-tab.active.anthropic{background:#5a2080;color:#e0aaff;}
+.provider-hint{font-size:11px;text-align:center;padding:6px 10px;border-radius:8px;line-height:1.6;width:100%;}
+.provider-hint.gemini{background:rgba(26,107,58,.15);border:1px solid rgba(26,107,58,.35);color:#7fffc4;}
+.provider-hint.anthropic{background:rgba(90,32,128,.15);border:1px solid rgba(90,32,128,.35);color:#c8a0ff;}
+
 </style>
 </head>
 <body>
@@ -295,6 +322,43 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
   </div>
 </div>
 
+
+
+<!-- API KEY SCREEN -->
+<div class="apikey-screen hidden" id="apikeyScreen">
+  <div class="apikey-box">
+    <div class="apikey-icon">🤖</div>
+    <h2>AI 연결 설정</h2>
+    <p class="desc" style="margin-bottom:2px;">AI 제공사를 선택하고 API 키를 입력해줘<br>키는 <strong style="color:var(--pink)">이 기기 안에만</strong> 저장돼</p>
+    <!-- Provider toggle -->
+    <div class="provider-tabs">
+      <button class="provider-tab gemini active" id="tabGemini" onclick="selectProvider('gemini')">✨ 제미나이 (무료)</button>
+      <button class="provider-tab anthropic" id="tabAnthropic" onclick="selectProvider('anthropic')">🤖 클로드</button>
+    </div>
+    <!-- Hint per provider -->
+    <div class="provider-hint gemini" id="hintGemini">
+      ✅ <strong>완전 무료!</strong> Google AI Studio에서 발급<br>
+      1. <a href="https://aistudio.google.com/app/apikey" target="_blank" style="color:#7fffc4;">aistudio.google.com</a> → Get API Key<br>
+      2. Google 계정으로 로그인 → 키 생성 완료!<br>
+      키 형식: <code style="color:#7fffc4;">AIzaSy...</code>
+    </div>
+    <div class="provider-hint anthropic hidden" id="hintAnthropic">
+      💳 신규 가입 시 무료 크레딧 제공<br>
+      1. <a href="https://console.anthropic.com" target="_blank" style="color:#c8a0ff;">console.anthropic.com</a> → API Keys<br>
+      2. Create Key → 복사<br>
+      키 형식: <code style="color:#c8a0ff;">sk-ant-...</code>
+    </div>
+    <!-- Key input -->
+    <div class="api-input-wrap">
+      <input class="api-key-input" id="apiKeyInput" type="password"
+        placeholder="AIzaSy..." autocomplete="off" autocorrect="off" spellcheck="false">
+      <button class="eye-btn" onclick="toggleApiKeyVis()">👁️</button>
+    </div>
+    <button class="room-btn primary" style="width:100%;" onclick="saveApiKey()">🔗 연결하기</button>
+    <p id="apiKeyErr" style="font-size:11px;color:#ff6b6b;height:14px;margin:0;"></p>
+    <p style="font-size:10px;color:var(--hint);text-align:center;">나중에 ⚙️ 설정에서 변경 가능해</p>
+  </div>
+</div>
 
 <!-- ROOM CODE SCREEN -->
 <div class="room-screen hidden" id="roomScreen">
@@ -382,6 +446,13 @@ input[type=range]::-moz-range-thumb{width:18px;height:18px;border-radius:50%;bac
       </div>
     </div>
     <div class="settings" id="settings">
+      <div class="setting-row">
+        <span class="setting-label">🤖 API 키</span>
+        <div style="display:flex;align-items:center;gap:6px;">
+          <span style="font-size:11px;color:var(--muted);" id="apiKeyStatus">미설정</span>
+          <button class="small-btn" onclick="showApiKeyScreen()">변경</button>
+        </div>
+      </div>
       <div class="setting-row">
         <span class="setting-label">💬 모드</span>
         <div class="mode-type-btns">
@@ -695,6 +766,86 @@ function promptChangeCode(){
   showNewSection();
 }
 
+
+// ── API KEY ──
+let userApiKey = '';
+
+let apiProvider = 'gemini'; // 'gemini' | 'anthropic'
+
+function selectProvider(p){
+  apiProvider = p;
+  document.getElementById('tabGemini').classList.toggle('active', p==='gemini');
+  document.getElementById('tabAnthropic').classList.toggle('active', p==='anthropic');
+  const hG = document.getElementById('hintGemini');
+  const hA = document.getElementById('hintAnthropic');
+  if(hG) hG.classList.toggle('hidden', p!=='gemini');
+  if(hA) hA.classList.toggle('hidden', p!=='anthropic');
+  const inp = document.getElementById('apiKeyInput');
+  if(inp) inp.placeholder = p==='gemini' ? 'AIzaSy...' : 'sk-ant-...';
+}
+
+async function initApiKey(){
+  try{
+    const storedProvider = await window.storage.get('api-provider');
+    const stored = await window.storage.get('user-api-key');
+    if(storedProvider && storedProvider.value) apiProvider = storedProvider.value;
+    const key = stored && stored.value;
+    const valid = key && (
+      (apiProvider==='gemini' && key.startsWith('AIza') && key.length > 15) ||
+      (apiProvider==='anthropic' && key.startsWith('sk-') && key.length > 20)
+    );
+    if(valid){ userApiKey = key; updateApiKeyStatus(); return true; }
+  }catch(e){}
+  return false;
+}
+
+function showApiKeyScreen(){
+  document.getElementById('apikeyScreen').classList.remove('hidden');
+  selectProvider(apiProvider); // restore current provider tabs
+  if(userApiKey) document.getElementById('apiKeyInput').value = userApiKey;
+  document.getElementById('apiKeyErr').textContent = '';
+  settingsOpen = false;
+  document.getElementById('settings').classList.remove('open');
+}
+
+async function saveApiKey(){
+  const val = document.getElementById('apiKeyInput').value.trim();
+  const errEl = document.getElementById('apiKeyErr');
+  if(apiProvider==='gemini'){
+    if(!val.startsWith('AIza')){errEl.textContent='제미나이 키는 AIzaSy... 형식이야';return;}
+    if(val.length < 15){errEl.textContent='키가 너무 짧아, 다시 확인해봐';return;}
+  } else {
+    if(!val.startsWith('sk-')){errEl.textContent='클로드 키는 sk-ant-... 형식이야';return;}
+    if(val.length < 20){errEl.textContent='키가 너무 짧아, 다시 확인해봐';return;}
+  }
+  userApiKey = val;
+  try{ await window.storage.set('user-api-key', val); await window.storage.set('api-provider', apiProvider); }catch(e){}
+  document.getElementById('apikeyScreen').classList.add('hidden');
+  updateApiKeyStatus();
+  // Continue init chain: check PIN then room code
+  try{
+    const pv=await window.storage.get('pin-hash');
+    const pe=await window.storage.get('pin-enabled');
+    if(pe&&pe.value==='1'&&pv&&pv.value){
+      storedPinHash=pv.value;pinEnabled=true;updatePinUI();showLockScreen();return;
+    }
+  }catch(e){}
+  if(!roomCode) await initRoomCode();
+}
+
+function updateApiKeyStatus(){
+  const el = document.getElementById('apiKeyStatus');
+  if(!el) return;
+  if(!userApiKey){ el.textContent='미설정'; return; }
+  const providerLabel = apiProvider==='gemini' ? '✨제미나이' : '🤖클로드';
+  el.textContent = providerLabel + ' ...'+userApiKey.slice(-4);
+}
+
+function toggleApiKeyVis(){
+  const inp = document.getElementById('apiKeyInput');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+}
+
 // ── PLATFORM DETECT ──
 const isIOS=/iPad|iPhone|iPod/.test(navigator.userAgent)&&!window.MSStream;
 const isMobile=/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
@@ -732,6 +883,13 @@ async function hashPin(pin){
 }
 
 async function checkLockOnLoad(){
+  // Step 1: Check API key
+  const hasApiKey = await initApiKey();
+  if(!hasApiKey){
+    showApiKeyScreen();
+    return; // saveApiKey() will continue the chain
+  }
+  // Step 2: Check PIN lock
   try{
     const pv=await window.storage.get('pin-hash');
     const pe=await window.storage.get('pin-enabled');
@@ -742,7 +900,8 @@ async function checkLockOnLoad(){
       return; // initRoomCode called from hideLockScreen after unlock
     }
   }catch(e){}
-  await initRoomCode(); // No PIN — init room code directly
+  // Step 3: Init room code
+  await initRoomCode();
 }
 
 function showLockScreen(){
@@ -955,12 +1114,45 @@ async function callAPI(personaKey,msgs){
   const apiMsgs=msgs.filter(m=>m.role==='user'||(isApology&&m.personaKey&&m.personaKey.startsWith('apology')&&m.personaKey===personaKey)||(!isApology&&m.personaKey===personaKey))
     .map(m=>({role:m.role==='user'?'user':'assistant',content:m.content}));
   if(!apiMsgs.length||apiMsgs[apiMsgs.length-1].role!=='user')return'...';
-  const res=await fetch('https://api.anthropic.com/v1/messages',{
-    method:'POST',headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:apiMsgs})
-  });
-  const data=await res.json();
-  return data.content?.[0]?.text||'(응답 오류)';
+  let responseText = '';
+  if(apiProvider === 'gemini'){
+    // Google Gemini API (gemini-1.5-flash — free tier)
+    const geminiMsgs = apiMsgs.map(m=>({
+      role: m.role === 'assistant' ? 'model' : 'user',
+      parts:[{text: m.content}]
+    }));
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash-latest:generateContent?key=${userApiKey}`,
+      {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          systemInstruction:{parts:[{text:sys}]},
+          contents: geminiMsgs,
+          generationConfig:{maxOutputTokens:800,temperature:1.0}
+        })
+      }
+    );
+    const data = await res.json();
+    if(data.error) throw new Error(data.error.message);
+    responseText = data.candidates?.[0]?.content?.parts?.[0]?.text || '(응답 오류)';
+  } else {
+    // Anthropic Claude API
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{
+        'Content-Type':'application/json',
+        'x-api-key': userApiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,system:sys,messages:apiMsgs})
+    });
+    const data=await res.json();
+    if(data.error) throw new Error(JSON.stringify(data.error));
+    responseText = data.content?.[0]?.text||'(응답 오류)';
+  }
+  return responseText;
 }
 
 async function sendMessage(){
